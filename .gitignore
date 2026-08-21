@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Soccerdata cache & downloads
+~/soccerdata
+.soccerdata_cache/
+
+# VS Code & IDEs
+.vscode/
+.idea/
+
+# Data files (optional: un-comment if storing large datasets)
+# data/raw/*
+# data/processed/*
