@@ -207,6 +207,7 @@ def plot_pass_network_by_position(events_df: pd.DataFrame,
                                   team_name: str,
                                   lineup_df: Optional[pd.DataFrame] = None,
                                   min_pass_count: int = 2,
+                                  min_node_pass_count: int = 3,
                                   title: Optional[str] = None) -> Tuple[plt.Figure, Tuple[plt.Axes, plt.Axes]]:
     """포지션(역할) 슬롯을 노드로 삼아 경기 전체(교체 포함) 패스 네트워크를 시각화합니다.
 
@@ -229,6 +230,10 @@ def plot_pass_network_by_position(events_df: pd.DataFrame,
         lineup_df (pd.DataFrame, optional): data_loader.get_match_lineups(...)[team_name].
             제공하면 player_nickname으로 로스터 패널의 이름을 표시합니다.
         min_pass_count (int): 이 횟수 미만으로 연결된 포지션 쌍은 표시하지 않습니다.
+        min_node_pass_count (int): 패스 시도가 이 횟수 미만인 포지션 슬롯은 노드/로스터에서
+            제외합니다. 후반 막판 몇 분만 뛰고 몇 번 안 만진 조커 교체 선수가, 표본이 적어
+            (모달 포지션이 불안정해) 다른 노드와 겹치는 작은 "가짜" 노드를 만드는 것을 막기
+            위함입니다(2024 유로 조지아전 R16, 프랑스전 SF에서 실제로 관찰됨).
         title (str, optional): 차트 제목
 
     Returns:
@@ -255,6 +260,7 @@ def plot_pass_network_by_position(events_df: pd.DataFrame,
     passes = passes.dropna(subset=['passer_position', 'recipient_position'])
 
     slot_pos = passes.groupby('passer_position').agg(x=('x', 'mean'), y=('y', 'mean'), pass_count=('x', 'count'))
+    slot_pos = slot_pos[slot_pos['pass_count'] >= min_node_pass_count]
 
     pair_counts = passes.groupby(['passer_position', 'recipient_position']).size().reset_index(name='count')
     pair_counts['pair'] = pair_counts.apply(
@@ -273,6 +279,11 @@ def plot_pass_network_by_position(events_df: pd.DataFrame,
     for position, group in team_events.dropna(subset=['position']).groupby('position'):
         first_seen = group.groupby('player')['minute'].min().sort_values()
         slot_history[position] = list(first_seen.items())
+
+    # 선수별 "경기 전체에서 가장 이른" 이벤트 시각. 어떤 슬롯에서의 첫 등장 시각이 이보다 늦다면,
+    # 그 선수는 이미 다른 포지션 라벨로 뛰고 있다가 재태깅된 것이지 새로 교체 투입된 게 아니다
+    # (Tactical Shift로 인한 라벨 변경 - 실제 Substitution 이벤트와 혼동하지 않기 위한 구분).
+    player_first_overall_minute = team_events.dropna(subset=['position']).groupby('player')['minute'].min()
 
     fig, (ax_pitch, ax_roster) = plt.subplots(1, 2, figsize=(18, 8), gridspec_kw={'width_ratios': [2.3, 1]})
     fig.set_facecolor('#1e1e1e')
@@ -305,20 +316,35 @@ def plot_pass_network_by_position(events_df: pd.DataFrame,
     # 오른쪽 패널: 포지션별 로스터 + 교체 시각 (수비 -> 공격 순, x좌표 기준)
     ax_roster.set_facecolor('#1e1e1e')
     ax_roster.axis('off')
-    ax_roster.set_title('Lineup by Position (substitution minute in parentheses)',
+    ax_roster.set_title('Lineup by Position ("*" = relabeled, not substituted in)',
                          fontsize=11, color='white', fontweight='bold', loc='left')
 
     ordered_positions = slot_pos.sort_values('x').index.tolist()
+    has_relabel = False
     for i, position in enumerate(ordered_positions):
         history = slot_history.get(position, [])
         parts = []
         for j, (player, minute) in enumerate(history):
             name = name_map.get(player, player)
-            parts.append(name if j == 0 else f"{name} ({int(minute)}')")
+            if j == 0:
+                parts.append(name)
+                continue
+            is_relabel = minute > player_first_overall_minute.get(player, minute)
+            if is_relabel:
+                has_relabel = True
+                parts.append(f"{name} ({int(minute)}'*)")
+            else:
+                parts.append(f"{name} ({int(minute)}')")
         chain = ' → '.join(parts)
         abbr = _abbreviate_position(position)
         ax_roster.text(0, 0.94 - i * 0.09, f"{abbr:<4}{chain}", color='white', fontsize=10,
                         family='monospace', transform=ax_roster.transAxes)
+
+    if has_relabel:
+        footnote_y = 0.94 - len(ordered_positions) * 0.09 - 0.05
+        ax_roster.text(0, footnote_y,
+                        '* already on the pitch under a different position label\n  (Tactical Shift), not a new substitution',
+                        color='#9aa0a6', fontsize=8.5, family='monospace', transform=ax_roster.transAxes)
 
     return fig, (ax_pitch, ax_roster)
 
