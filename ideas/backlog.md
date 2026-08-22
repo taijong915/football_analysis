@@ -29,7 +29,7 @@
   - 경기별 패스 네트워크 다이어그램 (평균 위치 + 선수 간 패스 빈도, `mplsoccer`)
   - 경기별 빌드업 구역(zone) 전진 패턴 시각화 (수비 1/3 → 중원 → 공격 1/3 전환 경로/히트맵)
   - 7경기를 관통하는 종합 비교 및 "스페인 빌드업 스타일" 결론 정리 (노트북)
-- **진행 상황**: `src/visualizer.py`에 `plot_pass_network()` 재사용 함수 추가 완료, `spain_euro2024/04_spain_euro2024_buildup.ipynb`에 7경기 전체를 도는 루프 스캐폴딩 완료 (패스 네트워크 부분만; 구역 기반 전진 경로 시각화는 아직 미착수). 상세 기획은 [`spain_euro2024/PLAN.md`](../spain_euro2024/PLAN.md) 참고.
+- **진행 상황**: 패스 네트워크 부분 완료 — `plot_pass_network()`/`plot_pass_network_by_position()`(`src/visualizer.py`) 구현, `spain_euro2024/pass_network/04_spain_euro2024_buildup.ipynb`로 7경기 전체 실행, 종합 결과는 [`spain_euro2024/pass_network/RESULTS.md`](../spain_euro2024/pass_network/RESULTS.md). 구역 기반 전진 경로 시각화는 아직 미착수. 상세 기획은 [`spain_euro2024/PLAN.md`](../spain_euro2024/PLAN.md) 참고.
 
 ## 완료
 

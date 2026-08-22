@@ -2,6 +2,10 @@
 
 `ideas/backlog.md`의 "2024 유로 스페인의 빌드업 패턴" 항목을 구체화한 기획 문서입니다. 이 폴더(`spain_euro2024/`)는 해당 분석의 노트북·산출물을 모아두는 전용 공간입니다.
 
+이 주제는 방법론이 두 갈래(패스 네트워크 / 구역 기반 전진 경로)라 방법론별 하위 폴더로 나눠 관리합니다:
+- [`pass_network/`](./pass_network/) — 패스 네트워크 노트북·산출물·종합 결과([`pass_network/RESULTS.md`](./pass_network/RESULTS.md))
+- `zone_progression/`(가칭, 미착수) — 구역 기반 전진 경로 착수 시 생성 예정
+
 ## 배경
 
 2024 유로에서 스페인은 우승을 차지하며 대회 내내 뚜렷한 빌드업 스타일(센터백을 넓게 벌리고, 풀백이 윙 포지션까지 전진하며, 로드리가 후방 전개를 전담하는 구조)을 보였다는 평가를 받았다. 이를 StatsBomb 이벤트 데이터로 정량적으로 확인하고, 상대·경기 상황에 따라 이 패턴이 얼마나 일관되게 유지됐는지 살펴본다.
@@ -23,7 +27,7 @@
 
 - **경기 전체 패스 네트워크 (채택된 주 방법론)**: `src/visualizer.py`의 `plot_pass_network_by_position()`. 노드를 선수 이름이 아니라 포지션 슬롯(`position` 컬럼, 예: `Right Defensive Midfield`)으로 잡아 교체와 무관하게 90분 전체 패스를 합산한다. 오른쪽 패널에 포지션별 로스터(어떤 선수가 그 슬롯을 맡았는지)와 교체 시각(첫 등장 시각의 근사치)을 함께 표시해, 노드만으로는 안 보이는 "누가 언제 바뀌었는지"를 보완한다.
   - 채택 배경: `plot_pass_network()`(아래)로 첫 교체 이전 구간만 보면 후반전 전술 변화가 전혀 반영되지 않고, 교체 이후 구간을 잘게 쪼개보면(예: 82-88분 6분 구간) 표본 부족으로 네트워크 품질이 급격히 떨어졌다. 포지션 슬롯 기준 합산은 이 두 문제를 동시에 해결한다.
-  - 데이터 검증(결승전 `match_id=3943043` 기준, 스페인 이벤트 2015건): `position` 결측률 낮음(7건만 `NaN`), 로드리→수비멘디 교체 후에도 같은 포지션 라벨을 이어받아 슬롯 집계가 자연스럽게 이어짐. 7경기 전체로 확대해 다시 확인한 결과도 모든 경기에서 결측률 1% 미만으로 안정적이었다(표는 `04_spain_euro2024_buildup.ipynb`의 방법론 셀 참고).
+  - 데이터 검증(결승전 `match_id=3943043` 기준, 스페인 이벤트 2015건): `position` 결측률 낮음(7건만 `NaN`), 로드리→수비멘디 교체 후에도 같은 포지션 라벨을 이어받아 슬롯 집계가 자연스럽게 이어짐. 7경기 전체로 확대해 다시 확인한 결과도 모든 경기에서 결측률 1% 미만으로 안정적이었다(표는 `pass_network/04_spain_euro2024_buildup.ipynb`의 방법론 셀 참고).
   - **노이즈 노드 필터(`min_node_pass_count`, 기본값 3)**: 후반 막판 몇 분만 뛰고 패스를 거의 못 만진 조커 교체 선수가, 표본이 적어 불안정한 모달 포지션으로 다른 노드와 겹치는 "가짜" 노드를 만드는 문제를 발견 — 프랑스전에서 93분 투입된 수비멘디의 스퓨리어스 RCM 노드가 실제 사례. 패스 시도가 `min_node_pass_count` 미만인 슬롯은 노드/로스터에서 제외하도록 고쳤다. (단, 조지아전 메리노처럼 패스를 3회 이상 만든 조커는 정당한 데이터이므로 필터로 지워지지 않고, 여전히 중앙 포지션끼리 노드가 겹칠 수 있다 — 이건 노이즈가 아니라 "중앙 포지션은 평균 위치가 가깝다"는 별개의 한계.)
   - **"실제 교체" vs "포지션 재태깅" 구분(`*` 표시)**: 로스터 패널에서 `Tactical Shift`로 인한 라벨 변경(이미 뛰던 선수의 포지션이 바뀐 것)과 실제 `Substitution`으로 새로 들어온 선수를 구분하지 못하던 문제를 고쳤다. 각 선수의 "경기 전체 첫 이벤트 시각"과 "그 슬롯에서의 첫 등장 시각"을 비교해, 슬롯 등장이 더 늦으면 `*`를 붙여 "이미 뛰고 있었음"을 표시한다. 프랑스전으로 검증: LW 줄의 `Mikel Merino (93'*)`는 실제로는 76분에 CAM으로 교체 투입된 뒤 93분에 라벨만 LW로 바뀐 것(진짜 LW 신규 투입은 `Martín Zubimendi (93')` 하나뿐)임을 정확히 잡아냈다. 덤으로 RB 줄의 `Nacho (62'*)`도 같은 경기에서 발견됐는데, 이는 57분 나바스 교체 이후 나초가 RCB에서 RB로 재배치된 것으로 보여 — 백4→백3/5 전환 같은 실제 전술 변화를 로스터 패널에서 읽어낼 수 있다는 뜻이기도 하다.
   - 알려진 한계(고쳐지지 않은 부분): `*` 표시는 "재태깅되었다"는 사실만 알려줄 뿐, 정확히 어떤 전술 변화였는지는 여전히 사용자가 원본 이벤트를 봐야 해석할 수 있다. 또한 중앙 포지션(RDM/CAM/CF 등)은 평균 위치가 서로 가까워 피치 위 노드가 여전히 겹치기 쉽다.
@@ -33,22 +37,22 @@
 
 ## 예상 산출물
 
-- 경기별 포지션 기반 전체 경기 패스 네트워크(+로스터 패널) PNG 7장 → `processed/spain_euro2024_pass_networks/` (완료)
+- 경기별 포지션 기반 전체 경기 패스 네트워크(+로스터 패널) PNG 7장 → [`pass_network/processed/spain_euro2024_pass_networks/`](./pass_network/processed/spain_euro2024_pass_networks/) (완료)
 - 경기별 구역 기반 전진 경로 시각화 (형식 미정)
-- 결승전 전반 샘플 분석 문서: [`processed/spain_pass_network_euro2024_final_sample.md`](./processed/spain_pass_network_euro2024_final_sample.md) (완료, 선발 라인업 스냅샷 기준)
-- 결승전 포지션 기반 전체 경기 샘플: [`processed/spain_pass_network_euro2024_final_by_position.png`](./processed/spain_pass_network_euro2024_final_by_position.png) (완료)
-- 7경기를 종합한 결론(노트북 "관찰 기록" 셀 또는 별도 요약 문서)
+- 결승전 전반 샘플 분석 문서: [`pass_network/processed/spain_pass_network_euro2024_final_sample.md`](./pass_network/processed/spain_pass_network_euro2024_final_sample.md) (완료, 선발 라인업 스냅샷 기준)
+- 결승전 포지션 기반 전체 경기 샘플: [`pass_network/processed/spain_pass_network_euro2024_final_by_position.png`](./pass_network/processed/spain_pass_network_euro2024_final_by_position.png) (완료)
+- 패스 네트워크 7경기 종합 결론: [`pass_network/RESULTS.md`](./pass_network/RESULTS.md) (완료)
 
 ## 진행 상황
 
 - [x] `plot_pass_network()` 함수 구현 (`src/visualizer.py`)
 - [x] 결승전 전반 1경기 샘플로 방법론 검증
-- [x] 7경기 루프 스캐폴딩 (`04_spain_euro2024_buildup.ipynb`, 패스 네트워크 부분)
+- [x] 7경기 루프 스캐폴딩 (`pass_network/04_spain_euro2024_buildup.ipynb`, 패스 네트워크 부분)
 - [x] `plot_pass_network_by_position()` 함수 구현 (`src/visualizer.py`) + 결승전 샘플로 검증
 - [x] 7경기 전체 실행 및 결과 확인 (경기마다 `position` 결측률·`Tactical Shift` 빈도 재확인 포함, 결과는 노트북 방법론 셀 참고)
 - [x] 노이즈 노드 필터(`min_node_pass_count`) + "실제 교체 vs 재태깅" 구분(`*` 표시) 추가, 7경기 재생성으로 검증
-- [ ] 구역 기반 전진 경로 시각화
-- [ ] 7경기 종합 비교 및 결론 정리
+- [x] 패스 네트워크 산출물을 `pass_network/` 전용 하위 폴더로 재구성, 7경기 종합 비교 및 결론 정리(`pass_network/RESULTS.md`)
+- [ ] 구역 기반 전진 경로 시각화 (`zone_progression/` 하위 폴더로 착수 예정)
 
 ## 한계 / 유의사항
 

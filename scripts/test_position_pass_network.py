@@ -8,6 +8,7 @@
 이 스크립트는 그 승격 과정을 추적할 수 있도록 남겨둔 것으로, 이제는 승격된 함수를
 그대로 가져다 써서 2024 유로 결승 샘플을 재생성한다.
 spain_euro2024/PLAN.md "position 컬럼 기반 대안" 항목 참고.
+산출물은 pass_network/ 하위 폴더에 저장한다 (spain_euro2024/PLAN.md, .claude/rules/analysis-workflow.md 참고).
 """
 import os
 import sys
@@ -33,7 +34,7 @@ if __name__ == '__main__':
         title='Spain Pass Network by Position - Final vs England (Full Match)',
     )
 
-    out_dir = os.path.join('spain_euro2024', 'processed')
+    out_dir = os.path.join('spain_euro2024', 'pass_network', 'processed')
     out_path = os.path.join(out_dir, 'spain_pass_network_euro2024_final_by_position.png')
     fig.savefig(out_path, dpi=150, bbox_inches='tight', facecolor='#1e1e1e')
     print('saved', out_path)
