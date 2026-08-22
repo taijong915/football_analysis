@@ -23,9 +23,9 @@ StatsBomb 이벤트/추적 데이터를 불러와 피치 시각화(슛 맵, 패�
 
 ## 분석 워크플로우
 
-새 분석 주제는 항상 3단계를 거칩니다: **아이디어 논의(`ideas/backlog.md`, 질문증강 방식) → 주제별 전용 폴더 생성(`PLAN.md` 포함, 예: `spain_euro2024/`) → 그 폴더 하위 `processed/`에서 산출물 관리**. 재사용 가능한 함수가 필요해지면 주제 폴더 안에서 바로 만들지 말고 `notebooks/`·`scripts/`·`data/`(공용 샌드박스)에서 먼저 프로토타입·테스트한 뒤 검증되면 `src/`로 승격해 커밋합니다.
+새 분석 주제는 항상 4단계를 거칩니다: **아이디어 논의(`ideas/backlog.md`, 질문증강 방식) → 데이터 검토(방법론이 의존하는 필드의 결측률·분포를 대상 경기/대회로 직접 확인) → 주제별 전용 폴더 생성(`PLAN.md` 포함, 예: `spain_euro2024/`) → 그 폴더 하위 `processed/`에서 산출물 관리**. 재사용 가능한 함수가 필요해지면 주제 폴더 안에서 바로 만들지 말고 `notebooks/`·`scripts/`·`data/`(공용 샌드박스)에서 먼저 프로토타입·테스트한 뒤 검증되면 `src/`로 승격해 커밋합니다.
 
-각 단계의 세부 규칙(질문증강 화법, 폴더 명명, `PLAN.md` 구성, 산출물 경로, 샌드박스 사용법)은 착수 시점에 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md)를 읽고 따르세요.
+각 단계의 세부 규칙(질문증강 화법, 데이터 검토 방법, 폴더 명명, `PLAN.md` 구성, 산출물 경로, 샌드박스 사용법)은 착수 시점에 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md)를 읽고 따르세요.
 
 ## 명령어
 

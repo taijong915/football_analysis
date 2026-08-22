@@ -115,7 +115,7 @@ def plot_pass_map(events_df: pd.DataFrame,
 def plot_pass_network(events_df: pd.DataFrame,
                       team_name: str,
                       lineup_df: Optional[pd.DataFrame] = None,
-                      minute_limit: Optional[float] = None,
+                      minute_range: Optional[Tuple[float, Optional[float]]] = None,
                       min_pass_count: int = 2,
                       title: Optional[str] = None) -> Tuple[plt.Figure, plt.Axes]:
     """팀의 패스 네트워크(선수 평균 위치 + 선수 간 연결)를 시각화합니다.
@@ -125,22 +125,29 @@ def plot_pass_network(events_df: pd.DataFrame,
         team_name (str): 분석할 팀 이름
         lineup_df (pd.DataFrame, optional): data_loader.get_match_lineups(...)[team_name].
             제공하면 player_nickname으로 라벨을 표시합니다 (예: 성이 두 개인 스페인 선수 표기 오류 방지).
-        minute_limit (float, optional): 이 분(minute) 이전 패스만 사용. 지정하지 않으면
-            해당 팀의 첫 교체 시각을 자동으로 사용해 선발 라인업이 고정된 구간만 분석합니다.
+        minute_range (tuple, optional): (시작 분, 끝 분)으로 이 구간의 패스만 사용
+            (시작 분 이상 ~ 끝 분 미만). 끝 분에 None을 주면 경기 끝까지 열어둡니다.
+            지정하지 않으면 (0, 해당 팀의 첫 교체 시각)을 자동으로 사용해 선발 라인업이
+            고정된 구간만 분석합니다 (교체가 없으면 경기 전체).
         min_pass_count (int): 이 횟수 미만으로 연결된 선수 쌍은 표시하지 않습니다 (노이즈 제거).
         title (str, optional): 차트 제목
 
     Returns:
         tuple: (fig, ax)
     """
-    if minute_limit is None:
+    if minute_range is None:
         subs = events_df[(events_df['type'] == 'Substitution') & (events_df['team'] == team_name)]
-        minute_limit = subs['minute'].min() if not subs.empty else np.inf
+        first_sub_minute = subs['minute'].min() if not subs.empty else np.inf
+        minute_range = (0, first_sub_minute)
+
+    min_minute, max_minute = minute_range
+    max_minute = np.inf if max_minute is None else max_minute
 
     passes = events_df[
         (events_df['type'] == 'Pass')
         & (events_df['team'] == team_name)
-        & (events_df['minute'] < minute_limit)
+        & (events_df['minute'] >= min_minute)
+        & (events_df['minute'] < max_minute)
     ].copy()
     passes = passes[passes['pass_outcome'].isna() & passes['pass_recipient'].notna()]
 
@@ -187,6 +194,133 @@ def plot_pass_network(events_df: pd.DataFrame,
     display_title = title if title else f"{team_name} Pass Network"
     ax.set_title(display_title, fontsize=14, color='white', pad=20, fontweight='bold')
     return fig, ax
+
+
+def _abbreviate_position(position: str) -> str:
+    """StatsBomb 포지션명을 약어로 변환합니다 (예: 'Right Center Back' -> 'RCB')."""
+    if position == 'Goalkeeper':
+        return 'GK'
+    return ''.join(word[0] for word in position.split())
+
+
+def plot_pass_network_by_position(events_df: pd.DataFrame,
+                                  team_name: str,
+                                  lineup_df: Optional[pd.DataFrame] = None,
+                                  min_pass_count: int = 2,
+                                  title: Optional[str] = None) -> Tuple[plt.Figure, Tuple[plt.Axes, plt.Axes]]:
+    """포지션(역할) 슬롯을 노드로 삼아 경기 전체(교체 포함) 패스 네트워크를 시각화합니다.
+
+    `plot_pass_network()`와 달리 노드가 "선수"가 아니라 "포지션 슬롯"(예: Right Defensive
+    Midfield)이라, 교체로 선수가 바뀌어도 같은 슬롯이면 패스가 계속 합산됩니다 — 경기 시간
+    전체를 하나의 네트워크로 볼 수 있는 대신, 어떤 선수가 그 슬롯을 맡았는지는 별도 패널에서
+    확인해야 합니다. 오른쪽 패널에 포지션별 선수 로스터와 교체 시각(첫 등장 시각의 근사치)을
+    함께 표시합니다.
+
+    각 선수의 슬롯은 해당 선수의 전체 이벤트에서 가장 자주 등장한 `position` 값(최빈값)으로
+    정합니다. `position` 컬럼의 결측률·`Tactical Shift`(포메이션 변경) 빈도는 대회/경기마다
+    달라질 수 있으므로 새 대상 데이터로 확인 후 사용하세요 (`.claude/rules/analysis-workflow.md`
+    "데이터 검토" 단계, `.claude/rules/statsbomb-data-notes.md` 참고). `Tactical Shift`가 일어나면
+    한 선수가 여러 포지션에 걸치거나, 로스터 상 교체 쌍이 실제 `Substitution` 이벤트의 OUT/IN
+    선수와 정확히 일치하지 않을 수 있습니다(2024 유로 결승 88~92분 구간에서 실제로 관찰됨).
+
+    Args:
+        events_df (pd.DataFrame): 경기 이벤트 데이터 (data_loader.get_match_events)
+        team_name (str): 분석할 팀 이름
+        lineup_df (pd.DataFrame, optional): data_loader.get_match_lineups(...)[team_name].
+            제공하면 player_nickname으로 로스터 패널의 이름을 표시합니다.
+        min_pass_count (int): 이 횟수 미만으로 연결된 포지션 쌍은 표시하지 않습니다.
+        title (str, optional): 차트 제목
+
+    Returns:
+        tuple: (fig, (ax_pitch, ax_roster))
+    """
+    team_events = events_df[events_df['team'] == team_name]
+
+    player_position = (
+        team_events.dropna(subset=['position'])
+        .groupby('player')['position']
+        .agg(lambda s: s.value_counts().idxmax())
+    )
+
+    passes = events_df[
+        (events_df['type'] == 'Pass') & (events_df['team'] == team_name)
+    ].copy()
+    passes = passes[passes['pass_outcome'].isna() & passes['pass_recipient'].notna()]
+
+    passes['x'] = passes['location'].apply(lambda loc: loc[0] if isinstance(loc, list) else np.nan)
+    passes['y'] = passes['location'].apply(lambda loc: loc[1] if isinstance(loc, list) else np.nan)
+
+    passes['passer_position'] = passes['player'].map(player_position)
+    passes['recipient_position'] = passes['pass_recipient'].map(player_position)
+    passes = passes.dropna(subset=['passer_position', 'recipient_position'])
+
+    slot_pos = passes.groupby('passer_position').agg(x=('x', 'mean'), y=('y', 'mean'), pass_count=('x', 'count'))
+
+    pair_counts = passes.groupby(['passer_position', 'recipient_position']).size().reset_index(name='count')
+    pair_counts['pair'] = pair_counts.apply(
+        lambda row: tuple(sorted([row['passer_position'], row['recipient_position']])), axis=1
+    )
+    pair_agg = pair_counts.groupby('pair')['count'].sum().reset_index()
+    pair_agg = pair_agg[pair_agg['count'] >= min_pass_count]
+
+    if lineup_df is not None:
+        name_map = dict(zip(lineup_df['player_name'], lineup_df['player_nickname'].fillna(lineup_df['player_name'])))
+    else:
+        name_map = {}
+
+    # 포지션별 등장 선수와 첫 등장 시각(교체 시점의 근사치) - 시간순
+    slot_history = {}
+    for position, group in team_events.dropna(subset=['position']).groupby('position'):
+        first_seen = group.groupby('player')['minute'].min().sort_values()
+        slot_history[position] = list(first_seen.items())
+
+    fig, (ax_pitch, ax_roster) = plt.subplots(1, 2, figsize=(18, 8), gridspec_kw={'width_ratios': [2.3, 1]})
+    fig.set_facecolor('#1e1e1e')
+
+    pitch = Pitch(pitch_type='statsbomb', pitch_color='#1e1e1e', line_color='#c7d5cc')
+    pitch.draw(ax=ax_pitch)
+
+    for _, row in pair_agg.iterrows():
+        p1, p2 = row['pair']
+        if p1 not in slot_pos.index or p2 not in slot_pos.index:
+            continue
+        x1, y1 = slot_pos.loc[p1, ['x', 'y']]
+        x2, y2 = slot_pos.loc[p2, ['x', 'y']]
+        pitch.lines(x1, y1, x2, y2, lw=row['count'] * 0.5, color='#00f0ff', alpha=0.6, zorder=1, ax=ax_pitch)
+
+    pitch.scatter(
+        slot_pos['x'], slot_pos['y'],
+        s=slot_pos['pass_count'] * 15,
+        color='#e94560', edgecolors='white', linewidth=1.5, zorder=2, ax=ax_pitch,
+    )
+
+    # 노드에는 포지션 약어만 표시(선수 체인은 오른쪽 로스터 패널에서 확인) - 중앙 포지션끼리 겹치는 것을 방지
+    for position, row in slot_pos.iterrows():
+        pitch.annotate(_abbreviate_position(position), xy=(row['x'], row['y']), c='white', va='center', ha='center',
+                        fontsize=10, fontweight='bold', zorder=3, ax=ax_pitch)
+
+    display_title = title if title else f"{team_name} Pass Network by Position"
+    ax_pitch.set_title(display_title, fontsize=14, color='white', pad=20, fontweight='bold')
+
+    # 오른쪽 패널: 포지션별 로스터 + 교체 시각 (수비 -> 공격 순, x좌표 기준)
+    ax_roster.set_facecolor('#1e1e1e')
+    ax_roster.axis('off')
+    ax_roster.set_title('Lineup by Position (substitution minute in parentheses)',
+                         fontsize=11, color='white', fontweight='bold', loc='left')
+
+    ordered_positions = slot_pos.sort_values('x').index.tolist()
+    for i, position in enumerate(ordered_positions):
+        history = slot_history.get(position, [])
+        parts = []
+        for j, (player, minute) in enumerate(history):
+            name = name_map.get(player, player)
+            parts.append(name if j == 0 else f"{name} ({int(minute)}')")
+        chain = ' → '.join(parts)
+        abbr = _abbreviate_position(position)
+        ax_roster.text(0, 0.94 - i * 0.09, f"{abbr:<4}{chain}", color='white', fontsize=10,
+                        family='monospace', transform=ax_roster.transAxes)
+
+    return fig, (ax_pitch, ax_roster)
 
 
 def plot_pizza_chart(params: List[str], values: List[float],
