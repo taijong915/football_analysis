@@ -112,6 +112,83 @@ def plot_pass_map(events_df: pd.DataFrame,
     return fig, ax
 
 
+def plot_pass_network(events_df: pd.DataFrame,
+                      team_name: str,
+                      lineup_df: Optional[pd.DataFrame] = None,
+                      minute_limit: Optional[float] = None,
+                      min_pass_count: int = 2,
+                      title: Optional[str] = None) -> Tuple[plt.Figure, plt.Axes]:
+    """팀의 패스 네트워크(선수 평균 위치 + 선수 간 연결)를 시각화합니다.
+
+    Args:
+        events_df (pd.DataFrame): 경기 이벤트 데이터 (data_loader.get_match_events)
+        team_name (str): 분석할 팀 이름
+        lineup_df (pd.DataFrame, optional): data_loader.get_match_lineups(...)[team_name].
+            제공하면 player_nickname으로 라벨을 표시합니다 (예: 성이 두 개인 스페인 선수 표기 오류 방지).
+        minute_limit (float, optional): 이 분(minute) 이전 패스만 사용. 지정하지 않으면
+            해당 팀의 첫 교체 시각을 자동으로 사용해 선발 라인업이 고정된 구간만 분석합니다.
+        min_pass_count (int): 이 횟수 미만으로 연결된 선수 쌍은 표시하지 않습니다 (노이즈 제거).
+        title (str, optional): 차트 제목
+
+    Returns:
+        tuple: (fig, ax)
+    """
+    if minute_limit is None:
+        subs = events_df[(events_df['type'] == 'Substitution') & (events_df['team'] == team_name)]
+        minute_limit = subs['minute'].min() if not subs.empty else np.inf
+
+    passes = events_df[
+        (events_df['type'] == 'Pass')
+        & (events_df['team'] == team_name)
+        & (events_df['minute'] < minute_limit)
+    ].copy()
+    passes = passes[passes['pass_outcome'].isna() & passes['pass_recipient'].notna()]
+
+    passes['x'] = passes['location'].apply(lambda loc: loc[0] if isinstance(loc, list) else np.nan)
+    passes['y'] = passes['location'].apply(lambda loc: loc[1] if isinstance(loc, list) else np.nan)
+
+    player_pos = passes.groupby('player').agg(x=('x', 'mean'), y=('y', 'mean'), pass_count=('x', 'count'))
+
+    pair_counts = passes.groupby(['player', 'pass_recipient']).size().reset_index(name='count')
+    pair_counts['pair'] = pair_counts.apply(
+        lambda row: tuple(sorted([row['player'], row['pass_recipient']])), axis=1
+    )
+    pair_agg = pair_counts.groupby('pair')['count'].sum().reset_index()
+    pair_agg = pair_agg[pair_agg['count'] >= min_pass_count]
+
+    if lineup_df is not None:
+        name_map = dict(zip(lineup_df['player_name'], lineup_df['player_nickname'].fillna(lineup_df['player_name'])))
+    else:
+        name_map = {}
+
+    pitch = Pitch(pitch_type='statsbomb', pitch_color='#1e1e1e', line_color='#c7d5cc')
+    fig, ax = pitch.draw(figsize=(12, 8))
+    fig.set_facecolor('#1e1e1e')
+
+    for _, row in pair_agg.iterrows():
+        p1, p2 = row['pair']
+        if p1 not in player_pos.index or p2 not in player_pos.index:
+            continue
+        x1, y1 = player_pos.loc[p1, ['x', 'y']]
+        x2, y2 = player_pos.loc[p2, ['x', 'y']]
+        pitch.lines(x1, y1, x2, y2, lw=row['count'] * 0.6, color='#00f0ff', alpha=0.6, zorder=1, ax=ax)
+
+    pitch.scatter(
+        player_pos['x'], player_pos['y'],
+        s=player_pos['pass_count'] * 25,
+        color='#e94560', edgecolors='white', linewidth=1.5, zorder=2, ax=ax,
+    )
+
+    for name, row in player_pos.iterrows():
+        display_name = name_map.get(name, name)
+        pitch.annotate(display_name, xy=(row['x'], row['y']), c='white', va='center', ha='center',
+                        fontsize=9, fontweight='bold', zorder=3, ax=ax)
+
+    display_title = title if title else f"{team_name} Pass Network"
+    ax.set_title(display_title, fontsize=14, color='white', pad=20, fontweight='bold')
+    return fig, ax
+
+
 def plot_pizza_chart(params: List[str], values: List[float],
                      player_name: str, sub_title: str = "Percentile Rank vs Position") -> Tuple[plt.Figure, plt.Axes]:
     """선수의 스탯 백분위수를 피자(Pizza / Radar) 차트로 시각화합니다."""
