@@ -1,6 +1,9 @@
 """Football Data Visualization Utilities using mplsoccer & matplotlib
 """
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
 import pandas as pd
 import numpy as np
 from mplsoccer import Pitch, VerticalPitch, PyPizza
@@ -347,6 +350,129 @@ def plot_pass_network_by_position(events_df: pd.DataFrame,
                         color='#9aa0a6', fontsize=8.5, family='monospace', transform=ax_roster.transAxes)
 
     return fig, (ax_pitch, ax_roster)
+
+
+_ZONE_X_LABELS = ['Def Box', 'Def Third', 'Def-Mid', 'Att-Mid', 'Att Third', 'Att Box']
+_ZONE_Y_LABELS = ['Left Wide', 'Left HS', 'Central', 'Right HS', 'Right Wide']
+
+
+def _zone_index(x: float, y: float, x_edges: np.ndarray, y_edges: np.ndarray) -> Tuple[int, int]:
+    """좌표 (x, y)가 속하는 구역의 (가로 인덱스, 세로 인덱스)를 반환합니다."""
+    xi = np.clip(np.searchsorted(x_edges, x, side='right') - 1, 0, len(x_edges) - 2)
+    yi = np.clip(np.searchsorted(y_edges, y, side='right') - 1, 0, len(y_edges) - 2)
+    return xi, yi
+
+
+def _zone_centroid(xi: int, yi: int, x_edges: np.ndarray, y_edges: np.ndarray) -> Tuple[float, float]:
+    """구역 인덱스 (xi, yi)에 해당하는 구역의 중심 좌표를 반환합니다."""
+    x = (x_edges[xi] + x_edges[xi + 1]) / 2
+    y = (y_edges[yi] + y_edges[yi + 1]) / 2
+    return x, y
+
+
+def plot_zone_progression(events_df: pd.DataFrame,
+                          team_name: str,
+                          min_transition_count: int = 3,
+                          title: Optional[str] = None) -> Tuple[plt.Figure, plt.Axes]:
+    """mplsoccer의 Juego de Posición(포지션 플레이) 그리드 기반 구역 전진 경로를 시각화합니다.
+
+    피치를 `Pitch(positional=True)`가 그리는 표준 그리드(참고:
+    https://spielverlagerung.com/2014/11/26/juego-de-posicion-a-short-explanation/)로 나눕니다.
+    직접 구간을 정하지 않고 `pitch.dim.positional_x`/`positional_y` 값을 그대로 읽어와 씁니다.
+    StatsBomb 좌표계(120x80) 기준 가로 6단([0, 18, 39, 60, 81, 102, 120] — 18/102는 페널티박스
+    라인, 60은 하프라인, 39/81은 그 중점) x 세로 5채널([0, 18, 30, 50, 62, 80] — 박스 폭 라인에
+    맞춘 하프스페이스 포함)로 총 30구역입니다.
+
+    피치 하나 위에 두 정보를 함께 표시합니다.
+    - 구역 배경 음영: 30구역 전부(패스 0회인 구역 포함)를 컬러맵으로 채우고, 각 구역 중앙에
+      그 구역에서 시작된 성공 패스 수(방향 무관)를 표시합니다.
+    - 화살표: 배경 음영 위에 겹쳐, 구역 간 "전진"(더 앞선 가로단으로 넘어가는) 성공 패스만
+      표시합니다(두께는 빈도 비례, `min_transition_count` 미만인 구역 쌍은 생략).
+    두 레이어 모두 같은 구역 정의를 쓰지만, 화살표는 전진 조건과 `min_transition_count`를
+    만족하는 구역 쌍만 그리므로 배경 음영엔 숫자가 있어도 화살표가 안 닿는 구역이 있을 수
+    있습니다.
+
+    Args:
+        events_df (pd.DataFrame): 경기 이벤트 데이터 (data_loader.get_match_events)
+        team_name (str): 분석할 팀 이름
+        min_transition_count (int): 이 횟수 미만으로 발생한 구역 간 전진 전환은 화살표로
+            표시하지 않습니다.
+        title (str, optional): 차트 제목
+
+    Returns:
+        tuple: (fig, ax)
+    """
+    pitch = Pitch(pitch_type='statsbomb', pitch_color='#1e1e1e', line_color='#c7d5cc',
+                  positional=True, positional_color='#555555', positional_alpha=0.6,
+                  positional_linewidth=1, positional_linestyle='--')
+    x_edges = pitch.dim.positional_x
+    y_edges = pitch.dim.positional_y
+
+    passes = events_df[
+        (events_df['type'] == 'Pass') & (events_df['team'] == team_name)
+    ].copy()
+    passes = passes[passes['pass_outcome'].isna() & passes['pass_recipient'].notna()]
+
+    passes['x'] = passes['location'].apply(lambda loc: loc[0] if isinstance(loc, list) else np.nan)
+    passes['y'] = passes['location'].apply(lambda loc: loc[1] if isinstance(loc, list) else np.nan)
+    passes['end_x'] = passes['pass_end_location'].apply(lambda loc: loc[0] if isinstance(loc, list) else np.nan)
+    passes['end_y'] = passes['pass_end_location'].apply(lambda loc: loc[1] if isinstance(loc, list) else np.nan)
+    passes = passes.dropna(subset=['x', 'y', 'end_x', 'end_y'])
+
+    zi = passes.apply(lambda r: _zone_index(r['x'], r['y'], x_edges, y_edges), axis=1, result_type='expand')
+    passes['start_xi'], passes['start_yi'] = zi[0], zi[1]
+    zi_end = passes.apply(lambda r: _zone_index(r['end_x'], r['end_y'], x_edges, y_edges), axis=1, result_type='expand')
+    passes['end_xi'], passes['end_yi'] = zi_end[0], zi_end[1]
+
+    # 점유: 패스 시작 위치 기준, 방향 무관 전체 구역별 표본
+    occupancy = np.zeros((len(_ZONE_X_LABELS), len(_ZONE_Y_LABELS)), dtype=int)
+    for (xi, yi), count in passes.groupby(['start_xi', 'start_yi']).size().items():
+        occupancy[xi, yi] = count
+
+    # 전진 전환: 더 앞선 가로단(end_xi > start_xi)으로 넘어간 패스만 집계
+    forward = passes[passes['end_xi'] > passes['start_xi']]
+    transitions = forward.groupby(['start_xi', 'start_yi', 'end_xi', 'end_yi']).size().reset_index(name='count')
+    transitions = transitions[transitions['count'] >= min_transition_count]
+
+    fig, ax = plt.subplots(figsize=(13, 8.5))
+    fig.set_facecolor('#1e1e1e')
+
+    pitch.draw(ax=ax)
+
+    # 구역 배경 음영: 점유(패스 시작 횟수)를 컬러맵으로. 피치 라인/전진 화살표보다 아래(zorder)에 그림
+    cmap = plt.get_cmap('YlOrRd')
+    norm = Normalize(vmin=0, vmax=occupancy.max() if occupancy.max() > 0 else 1)
+    for xi in range(len(_ZONE_X_LABELS)):
+        for yi in range(len(_ZONE_Y_LABELS)):
+            count = occupancy[xi, yi]
+            rect = Rectangle(
+                (x_edges[xi], y_edges[yi]), x_edges[xi + 1] - x_edges[xi], y_edges[yi + 1] - y_edges[yi],
+                facecolor=cmap(norm(count)), alpha=0.55, edgecolor='none', zorder=0.15,
+            )
+            ax.add_patch(rect)
+            cx, cy = _zone_centroid(xi, yi, x_edges, y_edges)
+            ax.text(cx, cy, str(count), ha='center', va='center', color='white', fontsize=8,
+                    alpha=0.85, zorder=0.2)
+
+    max_count = transitions['count'].max() if not transitions.empty else 1
+    for _, row in transitions.iterrows():
+        x1, y1 = _zone_centroid(row['start_xi'], row['start_yi'], x_edges, y_edges)
+        x2, y2 = _zone_centroid(row['end_xi'], row['end_yi'], x_edges, y_edges)
+        width = 1 + (row['count'] / max_count) * 5
+        pitch.arrows(x1, y1, x2, y2, width=width, headwidth=4, headlength=4,
+                     color='#00f0ff', alpha=0.85, zorder=2, ax=ax)
+
+    display_title = title if title else f"{team_name} Zone Progression"
+    ax.set_title(display_title, fontsize=14, color='white', pad=20, fontweight='bold')
+
+    sm = ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.02)
+    cbar.set_label('Zone Occupancy (pass starts)', color='white', fontsize=10)
+    cbar.ax.yaxis.set_tick_params(color='white')
+    plt.setp(cbar.ax.get_yticklabels(), color='white')
+
+    return fig, ax
 
 
 def plot_pizza_chart(params: List[str], values: List[float],

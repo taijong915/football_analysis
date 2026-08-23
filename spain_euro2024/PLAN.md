@@ -4,7 +4,9 @@
 
 이 주제는 방법론이 두 갈래(패스 네트워크 / 구역 기반 전진 경로)라 방법론별 하위 폴더로 나눠 관리합니다:
 - [`pass_network/`](./pass_network/) — 패스 네트워크 노트북·산출물·종합 결과([`pass_network/RESULTS.md`](./pass_network/RESULTS.md))
-- `zone_progression/`(가칭, 미착수) — 구역 기반 전진 경로 착수 시 생성 예정
+- [`zone_progression/`](./zone_progression/) — 구역 기반 전진 경로 노트북·산출물·종합 결과([`zone_progression/RESULTS.md`](./zone_progression/RESULTS.md))
+
+두 방법론을 종합한 최종 결론은 [`RESULTS.md`](./RESULTS.md)에 있습니다.
 
 ## 배경
 
@@ -33,12 +35,25 @@
   - 알려진 한계(고쳐지지 않은 부분): `*` 표시는 "재태깅되었다"는 사실만 알려줄 뿐, 정확히 어떤 전술 변화였는지는 여전히 사용자가 원본 이벤트를 봐야 해석할 수 있다. 또한 중앙 포지션(RDM/CAM/CF 등)은 평균 위치가 서로 가까워 피치 위 노드가 여전히 겹치기 쉽다.
   - **7경기 전체로 확대하기 전, 경기마다 `Tactical Shift` 빈도와 `position` 결측률을 다시 확인할 것** (`.claude/rules/statsbomb-data-notes.md`의 `position` 컬럼 노트, `.claude/rules/analysis-workflow.md`의 "데이터 검토" 단계 참고) — 완료, 아래 진행 상황 참고.
 - **선발 라인업 스냅샷 (보조 방법론)**: `src/visualizer.py`의 `plot_pass_network()`. 첫 교체 시각 이전(또는 `minute_range`로 지정한 구간)만 사용해 "그 시점 실제 11명"의 이름과 위치를 보고 싶을 때 보조적으로 사용. 구간이 짧으면(예: 6분) 표본 부족으로 품질이 떨어지므로 15분 미만 구간은 참고용으로만 쓴다.
-- **구역 기반 전진 경로**(미착수): 피치를 수비/중원/공격 1/3로 나누고, 각 구역 간 패스 전환 빈도 또는 히트맵으로 시각화 예정. 구체적 방법은 착수 시 여기에 갱신.
+- **구역 기반 전진 경로**(방법론 확정, 승격 전): 피치를 mplsoccer의 `Pitch(positional=True)`가 그리는 표준 Juego de Posición(포지션 플레이) 그리드로 나눈다 — 직접 구간을 정하는 대신 `pitch.dim.positional_x`/`positional_y` 값을 그대로 읽어와 쓴다. StatsBomb 좌표계(120×80) 기준:
+    - 가로 6단(`positional_x = [0, 18, 39, 60, 81, 102, 120]`): `Def Box`(0–18, 페널티박스 라인) / `Def Third`(18–39) / `Def-Mid`(39–60, 하프라인까지) / `Att-Mid`(60–81) / `Att Third`(81–102) / `Att Box`(102–120, 상대 페널티박스 라인). 18·102는 박스 라인, 60은 하프라인, 39·81은 그 중점.
+    - 세로 5채널(`positional_y = [0, 18, 30, 50, 62, 80]`): `Left Wide` / `Left HS`(하프스페이스) / `Central` / `Right HS` / `Right Wide` — 박스 폭 라인에 맞춰 정의되는 mplsoccer 표준 하프스페이스 채널.
+    - 총 30구역(6×5). 처음엔 직접 정한 3등분×5채널(15구역)로 시작했으나, 사용자가 "요즘 축구는 포지션 플레이 기반 전술이 많은데 이를 반영할 수 없냐"고 제안했고 mplsoccer의 `positional=True` 내장 그리드가 정확히 이 이론(spielverlagerung.com에서 정의한 Juego de Posición)을 구현한다는 걸 확인해 하드코딩 대신 라이브러리 값을 그대로 채택했다.
+  - **시각화 형식(단일 피치 통합)**: 점유 히트맵과 전진 화살표를 피치 하나 위에 함께 그린다.
+    - 배경 음영: 30구역 전부(패스 0회인 구역 포함)를 컬러맵(`YlOrRd`)으로 채우고 각 구역 중앙에 점유 횟수(그 구역에서 시작된 성공 패스 수, 방향 무관)를 텍스트로 표시. 오른쪽에 컬러바.
+    - 화살표: 배경 음영 위에 겹쳐, 구역 간 "전진"(더 앞선 가로단으로 넘어가는) 성공 패스만 표시(두께는 빈도 비례, `min_transition_count` 미만 쌍은 생략).
+    - 두 레이어 모두 같은 `x_edges`/`y_edges`(`positional_x`/`positional_y`)를 써서 구역 정의가 완전히 동일하다 — 다만 화살표는 30구역 중 전진 조건과 `min_transition_count`를 만족하는 구역 쌍만 그리므로, 히트맵엔 숫자가 있어도 화살표가 안 닿는 구역이 있을 수 있다.
+    - 채택 배경: 처음엔 왼쪽 피치(화살표) + 오른쪽 `imshow` 히트맵 패널을 분리해서 그렸으나, 사용자가 "화살표는 가로 방향(피치 좌표), 히트맵은 별도 격자라 축 방향이 안 맞아 보인다"고 지적했다. 두 레이어를 하나의 피치 좌표계로 합쳐 이 문제를 근본적으로 없앴다.
+    - 의외로 15구역보다 30구역(더 세밀한 그리드)에서 화살표 겹침이 줄어들었다 — 구역이 세밀해질수록 하나의 구역 쌍에 몰리는 표본이 줄어 `min_transition_count` 문턱을 넘는 쌍 자체가 적어지기 때문.
+    - 알려진 한계: 화살표가 지나가는 구역에서는 배경 텍스트(점유 횟수)가 가려질 수 있다(예: 결승전 샘플의 41, 26 구역).
+  - **y좌표 방향 검증**: y가 클수록 오른쪽(공격 방향 기준)인지 결승전 라멜 야말(RW) 패스 평균 y=64.7(Right HS/Right Wide 구간)로, 조지아전 니코 윌리엄스(LW) 관련 왼쪽 와이드 구역 점유(86·95, 압도적 1위)로 각각 확인했다.
+  - **데이터 검토** (`scripts/review_zone_progression_data.py`, 7경기 전체 스페인 `Pass` 이벤트 기준): `location`/`pass_end_location` 결측 0건, `[x, y]` 형태가 아닌 이상값도 0건 — 전체 4334개 패스 모두 정상.
+  - 프로토타입은 `scripts/test_zone_progression.py`(`plot_zone_progression()`)에 있으며, 결승전·조지아전(R16) 두 샘플로 검증했다. 아직 `src/visualizer.py`로 승격하거나 7경기 전체를 실행하지는 않았다.
 
 ## 예상 산출물
 
 - 경기별 포지션 기반 전체 경기 패스 네트워크(+로스터 패널) PNG 7장 → [`pass_network/processed/spain_euro2024_pass_networks/`](./pass_network/processed/spain_euro2024_pass_networks/) (완료)
-- 경기별 구역 기반 전진 경로 시각화 (형식 미정)
+- 경기별 구역 기반 전진 경로 시각화 (단일 피치 위 점유 히트맵 + 전진 화살표, 30구역 Juego de Posición 그리드) PNG 7장 → [`zone_progression/processed/spain_euro2024_zone_progression/`](./zone_progression/processed/spain_euro2024_zone_progression/) (완료)
 - 결승전 전반 샘플 분석 문서: [`pass_network/processed/spain_pass_network_euro2024_final_sample.md`](./pass_network/processed/spain_pass_network_euro2024_final_sample.md) (완료, 선발 라인업 스냅샷 기준)
 - 결승전 포지션 기반 전체 경기 샘플: [`pass_network/processed/spain_pass_network_euro2024_final_by_position.png`](./pass_network/processed/spain_pass_network_euro2024_final_by_position.png) (완료)
 - 패스 네트워크 7경기 종합 결론: [`pass_network/RESULTS.md`](./pass_network/RESULTS.md) (완료)
@@ -52,7 +67,16 @@
 - [x] 7경기 전체 실행 및 결과 확인 (경기마다 `position` 결측률·`Tactical Shift` 빈도 재확인 포함, 결과는 노트북 방법론 셀 참고)
 - [x] 노이즈 노드 필터(`min_node_pass_count`) + "실제 교체 vs 재태깅" 구분(`*` 표시) 추가, 7경기 재생성으로 검증
 - [x] 패스 네트워크 산출물을 `pass_network/` 전용 하위 폴더로 재구성, 7경기 종합 비교 및 결론 정리(`pass_network/RESULTS.md`)
-- [ ] 구역 기반 전진 경로 시각화 (`zone_progression/` 하위 폴더로 착수 예정)
+- [x] 구역 기반 전진 경로: 데이터 검토 완료 (`scripts/review_zone_progression_data.py`)
+- [x] 구역 그리드 확정: mplsoccer `Pitch(positional=True)` 표준 Juego de Posición 그리드(30구역) 채택
+- [x] 시각화 형식 확정(단일 피치 위 점유 히트맵 + 전진 화살표 통합) 및 프로토타입(`scripts/test_zone_progression.py`), 결승전·조지아전 샘플로 검증
+- [x] 검증된 함수 `plot_zone_progression()`을 `src/visualizer.py`로 승격, `zone_progression/05_spain_euro2024_zone_progression.ipynb`로 7경기 전체 실행
+- [x] 구역 기반 전진 경로 7경기 종합 비교 및 결론 정리 ([`zone_progression/RESULTS.md`](./zone_progression/RESULTS.md))
+- [x] 패스 네트워크 + 구역 기반 전진 경로 두 방법론을 종합한 "스페인 빌드업 스타일" 최종 결론 정리 (상위 `PLAN.md`, 분석 질문 4번)
+
+## 종합 결론: 대회 전체를 관통한 스페인 빌드업 스타일 (분석 질문 4)
+
+패스 네트워크와 구역 기반 전진 경로 두 방법론을 종합한 최종 결론은 [`RESULTS.md`](./RESULTS.md)에 정리했습니다. 요약하면: **센터백을 넓게 벌리고 로드리가 축이 되는 중앙 순환 구조로 빌드업을 시작해 풀백을 윙까지 전진시키는 대형(좌우 대칭)이었지만, 실제 전진의 종착점(`Att-Mid/Left Wide`)은 7경기 내내 왼쪽으로 쏠렸습니다.**
 
 ## 한계 / 유의사항
 

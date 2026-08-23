@@ -105,3 +105,22 @@
 
 **결정**: `spain_euro2024/`에 있던 패스 네트워크 관련 노트북(`04_spain_euro2024_buildup.ipynb`)과 모든 산출물(`processed/` 전체 — 결승전 샘플 md/png/pdf, 결승전 포지션 기반 샘플, 교체 구간별 실험 이미지, 7경기 루프 결과)을 새로 만든 `spain_euro2024/pass_network/` 하위 폴더(노트북 + `processed/`)로 이동했다. 7경기 결과를 종합한 `pass_network/RESULTS.md`를 새로 작성했고, 노트북·PLAN.md·`ideas/backlog.md`·`scripts/test_position_pass_network.py`·`.claude/rules/analysis-workflow.md`의 경로 참조를 모두 갱신했다. `analysis-workflow.md`에는 "한 주제 안에 방법론이 여러 갈래면 방법론별 하위 폴더로 나눌 수 있다"는 규칙을 추가했다.
 **이유**: "2024 유로 스페인의 빌드업 패턴" 주제는 애초 기획부터 방법론이 두 갈래(패스 네트워크 + 구역 기반 전진 경로)였다. 패스 네트워크 쪽 산출물이 늘어나면서(7경기 PNG, 여러 실험 이미지) `spain_euro2024/processed/`에 다 함께 쌓아두면 앞으로 시작할 구역 기반 전진 경로 산출물과 섞여 구분하기 어려워질 것으로 판단했다. 방법론별 하위 폴더(주제 폴더 안에 `PLAN.md`+노트북+`processed/`+`RESULTS.md` 패턴을 재귀적으로 적용)로 나눠, 상위 `PLAN.md`는 전체 기획을, 각 하위 폴더의 `RESULTS.md`는 해당 방법론의 종합 결과를 담당하도록 역할을 분리했다. 이 결과 문서 작성은 `PLAN.md` 진행 상황의 "7경기 종합 비교 및 결론 정리" 항목도 함께 완료시켰다.
+
+## 2026-08-23 구역 기반 전진 경로: mplsoccer 표준 그리드 + 단일 피치 통합 시각화로 확정, 7경기 실행
+
+**결정**: `spain_euro2024/` "구역 기반 전진 경로" 방법론을 다음과 같이 확정하고 7경기 전체를 실행했다.
+- 구역 그리드: 처음엔 직접 정한 3등분×5채널(15구역)로 시작했으나, mplsoccer의 `Pitch(positional=True)`가 그리는 표준 Juego de Posición(포지션 플레이) 그리드(30구역, `pitch.dim.positional_x`/`positional_y`)로 교체했다. 하드코딩 대신 라이브러리 값을 그대로 읽어 쓴다.
+- 시각화: 처음엔 화살표 피치와 별도 `imshow` 히트맵 패널을 나란히 뒀으나, 두 좌표계가 어긋나 보인다는 지적을 받아 피치 하나 위에 통합했다 — 30구역 점유(패스 시작 횟수, 방향 무관)를 배경 음영으로, 구역 간 전진 패스 전환(더 앞선 가로단으로 넘어간 성공 패스, `min_transition_count` 이상 반복된 쌍만)을 화살표로 겹쳐 그린다.
+- `plot_zone_progression()`을 `src/visualizer.py`로 승격하고 `spain_euro2024/zone_progression/05_spain_euro2024_zone_progression.ipynb`로 7경기 전체를 실행, 결과는 `zone_progression/processed/spain_euro2024_zone_progression/`에 PNG 7장으로 저장했다.
+- 노트북을 `jupyter nbconvert`/`nbclient`로 실행하다가 `sys.stdout.reconfigure(encoding='utf-8')`가 ipykernel의 `OutStream`에는 없는 메서드라 `AttributeError`가 나는 걸 발견해, `hasattr(sys.stdout, 'reconfigure')` 가드를 추가했다. 실행 후 노트북에 인라인 이미지가 임베드돼 740KB로 커진 것을, 기존 `pass_network` 노트북처럼 출력을 지워 7.5KB로 되돌렸다(이미지는 `processed/`의 PNG로 이미 저장돼 있으므로 노트북엔 코드만 남긴다).
+**이유**: 사용자가 "요즘 축구는 포지션 플레이 기반 전술이 많은데 이를 반영할 수 없냐"고 제안했고, mplsoccer에 이미 이 이론(spielverlagerung.com에서 정의한 Juego de Posición)을 구현한 내장 그리드가 있다는 걸 사용자가 먼저 알려줬다 — 직접 만든 15구역보다 실제 코칭 현장에서 쓰는 표준 그리드를 쓰는 게 정확하고, 실제로 화면 겹침도 줄어드는 효과가 있었다(구역이 세밀해질수록 `min_transition_count` 문턱을 넘는 구역 쌍이 줄어듦). 이어서 사용자가 "화살표(피치 좌표)와 히트맵(별도 격자)의 방향이 안 맞아 보인다"고 지적해, 두 레이어를 하나의 피치 좌표계로 합쳐 원천적으로 해결했다.
+
+## 2026-08-23 "2024 유로 스페인의 빌드업 패턴" 주제 완료 — 두 방법론 종합 결론 정리
+
+**결정**: `spain_euro2024/zone_progression/RESULTS.md`(7경기 종합 결과)를 작성하고, 이어서 패스 네트워크와 구역 기반 전진 경로 두 방법론을 종합한 최종 결론을 상위 `spain_euro2024/PLAN.md`에 "종합 결론" 절로 정리했다 — "센터백을 넓게 벌리고 로드리 축의 중앙 순환으로 빌드업을 시작해 양쪽 풀백을 윙까지 전진시키는 구조(좌우 대칭)이지만, 실제 전진의 종착점(`Att-Mid/Left Wide` 구역)은 7경기 내내 일관되게 왼쪽으로 쏠렸다"는 결론이다. `ideas/backlog.md`의 해당 항목을 `진행중` → `완료`로 옮겼다.
+**이유**: 사용자가 화살표 개수가 경기마다 다른 이유(표본 크기 차이)를 물어봐서 `RESULTS.md`의 "한계/유의사항"에 이를 명시적으로 설명하는 절을 넣었고, 이어서 두 방법론을 종합해달라고 요청했다. 두 방법론을 따로 보면 각자 부분적인 그림만 준다 — 패스 네트워크는 "구조"(좌우 대칭)를, 구역 기반 전진 경로는 "방향"(왼쪽 쏠림)을 보여주는데, 이 둘을 합쳐야만 "구조는 대칭이지만 실제 활용은 비대칭"이라는, 애초에 이 주제를 두 방법론으로 나눠 시작한 목적(분석 질문 4)에 부합하는 결론이 나왔다.
+
+## 2026-08-23 종합 결론을 `spain_euro2024/RESULTS.md`로 분리
+
+**결정**: 두 방법론(패스 네트워크/구역 기반 전진 경로)을 종합한 최종 결론을 `PLAN.md` 안의 절로 두지 않고, `pass_network/RESULTS.md`·`zone_progression/RESULTS.md`와 같은 레벨로 `spain_euro2024/RESULTS.md`를 새로 만들어 옮겼다. `PLAN.md`에는 결론 한 문장 요약 + 링크만 남겼고, 상단 폴더 안내와 `ideas/backlog.md` 링크도 이 문서를 가리키도록 갱신했다.
+**이유**: 사용자가 "종합 결론에 대한 문서도 별도로 생성하는 게 어떨까"라고 제안했다. `PLAN.md`는 기획 문서(무엇을 왜 하는지)이고 결론은 결과 문서에 속하는데, 두 방법론 각각 이미 `RESULTS.md`가 있는 폴더 구조에서 최상위 종합 결론만 `PLAN.md`에 섞여 있는 게 비일관적이었다. 최상위에도 `RESULTS.md`를 둬서 "기획은 PLAN.md, 결과는 RESULTS.md"라는 패턴을 모든 레벨(주제 전체/방법론별)에서 동일하게 유지했다.
