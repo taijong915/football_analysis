@@ -41,3 +41,6 @@ ENV/
 # Data files (optional: un-comment if storing large datasets)
 # data/raw/*
 # data/processed/*
+
+# 로컬 전용 PDF 내보내기 (RESULTS.md를 PDF로 저장한 것, 커밋하지 않음)
+RESULTS.pdf

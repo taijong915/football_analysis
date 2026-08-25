@@ -21,6 +21,15 @@
 
 ## 진행중
 
+### 2024 유로 스페인의 빌드업 패턴 (심화)
+
+- **분석 질문**: (1~4번은 완료, 아래 "완료" 절 참고) 5. 패스 네트워크의 "구조 유지" 판단과 구역 기반 전진 경로의 "왼쪽 쏠림"을 수치·통계적으로 검증하면 어떤 결과가 나오는가 — 좌우 비대칭이 실제로 통계적으로 유의미한가, 경기별 편차는 얼마나 되는가? 6. 개별 성공 패스 단위가 아니라 `possession` 단위로 연속된 빌드업 시퀀스를 추적하면, 스페인의 "왼쪽 진출 루트"가 실제로 몇 번의 패스·어떤 구역들을 거쳐 이루어지는가?
+- **필요 데이터**: 기존과 동일(`competition_id=55, season_id=282`, 스페인 7경기 이벤트) + `possession` 컬럼(체인 추적용)
+- **예상 산출물**:
+  - 좌우 비대칭 통계 검증: `spain_euro2024/asymmetry_stats/` (착수 예정)
+  - possession 체인 추적: `spain_euro2024/possession_chains/` (착수 예정)
+- **비고**: 기존 완료 항목(패스 네트워크 + 구역 기반 전진 경로)을 더 깊게 파는 심화 작업이라 새 주제로 분리하지 않고 같은 항목을 재오픈했다. 기존 결론과 산출물은 아래 "완료" 절에 그대로 남겨둔다.
+
 ## 완료
 
 ### 2024 유로 스페인의 빌드업 패턴
@@ -31,6 +40,7 @@
   - 패스 네트워크: `plot_pass_network()`/`plot_pass_network_by_position()`(`src/visualizer.py`), `spain_euro2024/pass_network/04_spain_euro2024_buildup.ipynb`로 7경기 실행, 종합 결과는 [`spain_euro2024/pass_network/RESULTS.md`](../spain_euro2024/pass_network/RESULTS.md).
   - 구역 기반 전진 경로: `plot_zone_progression()`(`src/visualizer.py`, mplsoccer `positional=True` 표준 Juego de Posición 30구역 그리드), `spain_euro2024/zone_progression/05_spain_euro2024_zone_progression.ipynb`로 7경기 실행, 종합 결과는 [`spain_euro2024/zone_progression/RESULTS.md`](../spain_euro2024/zone_progression/RESULTS.md).
   - 두 방법론을 종합한 "스페인 빌드업 스타일" 최종 결론: [`spain_euro2024/RESULTS.md`](../spain_euro2024/RESULTS.md) — 구조는 좌우 대칭(센터백 넓게 벌림 + 로드리 축 + 양쪽 풀백 전진)이지만 실제 전진 방향은 왼쪽으로 일관되게 쏠림.
+- **후속**: 이 결론을 더 깊게 검증하는 심화 작업이 위 "진행중" 절에서 진행 중.
 
 ## 보류
 

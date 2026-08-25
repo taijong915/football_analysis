@@ -2,11 +2,13 @@
 
 `ideas/backlog.md`의 "2024 유로 스페인의 빌드업 패턴" 항목을 구체화한 기획 문서입니다. 이 폴더(`spain_euro2024/`)는 해당 분석의 노트북·산출물을 모아두는 전용 공간입니다.
 
-이 주제는 방법론이 두 갈래(패스 네트워크 / 구역 기반 전진 경로)라 방법론별 하위 폴더로 나눠 관리합니다:
-- [`pass_network/`](./pass_network/) — 패스 네트워크 노트북·산출물·종합 결과([`pass_network/RESULTS.md`](./pass_network/RESULTS.md))
-- [`zone_progression/`](./zone_progression/) — 구역 기반 전진 경로 노트북·산출물·종합 결과([`zone_progression/RESULTS.md`](./zone_progression/RESULTS.md))
+이 주제는 방법론이 여러 갈래라 방법론별 하위 폴더로 나눠 관리합니다:
+- [`pass_network/`](./pass_network/) — 패스 네트워크 노트북·산출물·종합 결과([`pass_network/RESULTS.md`](./pass_network/RESULTS.md)) (완료)
+- [`zone_progression/`](./zone_progression/) — 구역 기반 전진 경로 노트북·산출물·종합 결과([`zone_progression/RESULTS.md`](./zone_progression/RESULTS.md)) (완료)
+- `asymmetry_stats/` — 좌우 비대칭 통계 검증 (착수 예정, 분석 질문 5)
+- `possession_chains/` — possession 체인 추적 (착수 예정, 분석 질문 6)
 
-두 방법론을 종합한 최종 결론은 [`RESULTS.md`](./RESULTS.md)에 있습니다.
+패스 네트워크·구역 기반 전진 경로 두 방법론을 종합한 최종 결론은 [`RESULTS.md`](./RESULTS.md)에 있습니다. 이 결론을 수치·통계로 검증하고 시퀀스 단위로 더 깊게 파는 심화 작업이 아래 분석 질문 5·6, `asymmetry_stats/`·`possession_chains/`에서 진행 중입니다.
 
 ## 배경
 
@@ -18,6 +20,8 @@
 2. 상대 팀이나 경기 상황(조별리그 vs 토너먼트, 스코어 열세/우세 등)에 따라 이 네트워크가 달라졌는가, 아니면 대체로 일관됐는가?
 3. 패스 네트워크만으로 보이지 않는 "전진 경로"(수비 1/3 → 중원 → 공격 1/3로 볼이 어떤 구역을 거쳐 나아가는지)는 어떤 모습인가?
 4. 위 결과를 종합했을 때, 대회 전체를 관통하는 스페인의 빌드업 스타일을 한두 문장으로 어떻게 요약할 수 있는가?
+5. (심화) 패스 네트워크의 "구조 유지" 판단과 구역 기반 전진 경로의 "왼쪽 쏠림"을 수치·통계적으로 검증하면 어떤 결과가 나오는가? 좌우 비대칭이 실제로 통계적으로 유의미한가, 경기별 편차는 얼마나 되는가?
+6. (심화) 개별 성공 패스 단위가 아니라 `possession` 단위로 연속된 빌드업 시퀀스를 추적하면, 스페인의 "왼쪽 진출 루트"가 실제로 몇 번의 패스·어떤 구역들을 거쳐 이루어지는가?
 
 ## 데이터 범위
 
@@ -49,6 +53,11 @@
   - **y좌표 방향 검증**: y가 클수록 오른쪽(공격 방향 기준)인지 결승전 라멜 야말(RW) 패스 평균 y=64.7(Right HS/Right Wide 구간)로, 조지아전 니코 윌리엄스(LW) 관련 왼쪽 와이드 구역 점유(86·95, 압도적 1위)로 각각 확인했다.
   - **데이터 검토** (`scripts/review_zone_progression_data.py`, 7경기 전체 스페인 `Pass` 이벤트 기준): `location`/`pass_end_location` 결측 0건, `[x, y]` 형태가 아닌 이상값도 0건 — 전체 4334개 패스 모두 정상.
   - 프로토타입은 `scripts/test_zone_progression.py`(`plot_zone_progression()`)에 있으며, 결승전·조지아전(R16) 두 샘플로 검증했다. 아직 `src/visualizer.py`로 승격하거나 7경기 전체를 실행하지는 않았다.
+- **좌우 비대칭 통계 검증**(분석 질문 5, 착수 예정): 기존 두 방법론의 "구조 유지"·"왼쪽 쏠림" 판단이 7장 이미지 정성 비교에 그쳤던 한계를 수치로 보완한다. 패스 네트워크는 노드별 패스 수·연결 밀도를 수치화해 경기 간 비교, 구역 기반 전진 경로는 좌/우 진출 비율 차이를 통계적으로 검정(예: t-test 또는 부트스트랩)한다. 착수 전 데이터 검토(경기별 좌/우 표본 수 분포 등)를 먼저 진행한다.
+- **possession 체인 추적**(분석 질문 6): 구역 기반 전진 경로가 개별 성공 패스 단위로 화살표를 그려 "연속된 빌드업 시퀀스"를 못 잡는 한계를 보완한다. StatsBomb 이벤트의 `possession` id로 같은 소유권 내 연속 패스를 체인으로 묶어, 왼쪽 진출 루트가 실제로 몇 번의 패스·어떤 구역을 거치는지 추적한다.
+  - **데이터 검토** (`scripts/review_possession_chains_data.py`, 7경기 전체): `possession` 결측 0건(전 경기). 경기당 possession 개수는 144~215개, 그중 스페인의 성공 패스가 1개 이상 포함된 possession은 64~88개. possession당 스페인 성공 패스 수는 평균 5.7~11.4개, 중앙값 4~8개(최댓값은 조지아전 51개) — 시퀀스로 다루기에 충분한 길이다. 다만 최솟값은 모든 경기에서 1(패스 없이 소유권만 짧게 가진 possession도 다수 포함)이라, 체인 분석 시 "길이 2 미만"은 별도 처리(제외 또는 표기)가 필요하다.
+  - **주의**: `possession` 컬럼은 팀 구분 없이 부여되므로(같은 possession 번호 안에 상대 팀 이벤트도 섞임), 스페인의 소유 구간만 뽑으려면 `team`뿐 아니라 `possession_team`도 함께 걸러야 한다 (`scripts/review_possession_chains_data.py`에서 검증).
+  - 아직 체인 시각화 형식(예: 구역 경로 다이어그램, 대표 경로 Top-N 등)은 확정 전 — 다음 단계에서 프로토타입할 예정.
 
 ## 예상 산출물
 
@@ -57,6 +66,8 @@
 - 결승전 전반 샘플 분석 문서: [`pass_network/processed/spain_pass_network_euro2024_final_sample.md`](./pass_network/processed/spain_pass_network_euro2024_final_sample.md) (완료, 선발 라인업 스냅샷 기준)
 - 결승전 포지션 기반 전체 경기 샘플: [`pass_network/processed/spain_pass_network_euro2024_final_by_position.png`](./pass_network/processed/spain_pass_network_euro2024_final_by_position.png) (완료)
 - 패스 네트워크 7경기 종합 결론: [`pass_network/RESULTS.md`](./pass_network/RESULTS.md) (완료)
+- 좌우 비대칭 통계 검증 결과: `spain_euro2024/asymmetry_stats/RESULTS.md` (착수 예정)
+- possession 체인 추적 결과: `spain_euro2024/possession_chains/RESULTS.md` (착수 예정)
 
 ## 진행 상황
 
@@ -73,6 +84,10 @@
 - [x] 검증된 함수 `plot_zone_progression()`을 `src/visualizer.py`로 승격, `zone_progression/05_spain_euro2024_zone_progression.ipynb`로 7경기 전체 실행
 - [x] 구역 기반 전진 경로 7경기 종합 비교 및 결론 정리 ([`zone_progression/RESULTS.md`](./zone_progression/RESULTS.md))
 - [x] 패스 네트워크 + 구역 기반 전진 경로 두 방법론을 종합한 "스페인 빌드업 스타일" 최종 결론 정리 (상위 `PLAN.md`, 분석 질문 4번)
+- [ ] 좌우 비대칭 통계 검증: 데이터 검토 (경기별 좌/우 표본 수 분포 등)
+- [ ] 좌우 비대칭 통계 검증: 방법론 확정 및 `asymmetry_stats/` 폴더 착수 (분석 질문 5)
+- [x] possession 체인 추적: 데이터 검토 (`scripts/review_possession_chains_data.py`, 7경기 전체 — `possession` 결측 0건, 체인 길이 충분함 확인)
+- [ ] possession 체인 추적: 시각화 형식 확정 및 `possession_chains/` 폴더 착수 (분석 질문 6)
 
 ## 종합 결론: 대회 전체를 관통한 스페인 빌드업 스타일 (분석 질문 4)
 
