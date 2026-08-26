@@ -475,6 +475,188 @@ def plot_zone_progression(events_df: pd.DataFrame,
     return fig, ax
 
 
+_LEFT_CHANNELS = {'Left Wide', 'Left HS'}
+_RIGHT_CHANNELS = {'Right Wide', 'Right HS'}
+
+
+def _prepare_chain_passes(events_df: pd.DataFrame, team_name: str, min_chain_length: int,
+                          x_edges: np.ndarray, y_edges: np.ndarray) -> pd.DataFrame:
+    """같은 possession 안에서 팀의 성공 패스가 `min_chain_length`회 이상 이어진
+    "체인"에 속하는 패스만 걸러 구역 인덱스를 붙여 반환합니다.
+
+    `possession` 번호는 팀 구분 없이 부여되므로 `team`뿐 아니라 `possession_team`도
+    함께 걸러야 정확한 소유 구간이 됩니다 (.claude/rules/statsbomb-data-notes.md 참고).
+    """
+    passes = events_df[
+        (events_df['type'] == 'Pass')
+        & (events_df['team'] == team_name)
+        & (events_df['possession_team'] == team_name)
+    ].copy()
+    passes = passes[passes['pass_outcome'].isna() & passes['pass_recipient'].notna()]
+
+    chain_sizes = passes.groupby('possession').size()
+    valid_possessions = chain_sizes[chain_sizes >= min_chain_length].index
+    passes = passes[passes['possession'].isin(valid_possessions)].sort_values(['possession', 'index'])
+
+    passes['x'] = passes['location'].apply(lambda loc: loc[0] if isinstance(loc, list) else np.nan)
+    passes['y'] = passes['location'].apply(lambda loc: loc[1] if isinstance(loc, list) else np.nan)
+    passes['end_x'] = passes['pass_end_location'].apply(lambda loc: loc[0] if isinstance(loc, list) else np.nan)
+    passes['end_y'] = passes['pass_end_location'].apply(lambda loc: loc[1] if isinstance(loc, list) else np.nan)
+    passes = passes.dropna(subset=['x', 'y', 'end_x', 'end_y'])
+
+    zi = passes.apply(lambda r: _zone_index(r['x'], r['y'], x_edges, y_edges), axis=1, result_type='expand')
+    passes['start_xi'], passes['start_yi'] = zi[0], zi[1]
+    zi_end = passes.apply(lambda r: _zone_index(r['end_x'], r['end_y'], x_edges, y_edges), axis=1, result_type='expand')
+    passes['end_xi'], passes['end_yi'] = zi_end[0], zi_end[1]
+    return passes
+
+
+def _chain_length_by_final_side(passes: pd.DataFrame) -> pd.DataFrame:
+    """체인별(possession id, 패스 수, 마지막 패스가 도착한 y채널 Left/Central/Right)을 집계합니다."""
+    rows = []
+    for possession, group in passes.groupby('possession'):
+        last = group.iloc[-1]
+        end_channel = _ZONE_Y_LABELS[last['end_yi']]
+        if end_channel in _LEFT_CHANNELS:
+            side = 'Left'
+        elif end_channel in _RIGHT_CHANNELS:
+            side = 'Right'
+        else:
+            side = 'Central'
+        rows.append({'possession': possession, 'n_passes': len(group), 'final_side': side})
+    return pd.DataFrame(rows)
+
+
+def _draw_chain_progression_main_panel(ax, pitch, passes, x_edges, y_edges, min_transition_count, title):
+    """possession 체인 데이터로 구역 점유 히트맵 + 전진 화살표를 그립니다(plot_zone_progression과 동일 스타일)."""
+    occupancy = np.zeros((len(_ZONE_X_LABELS), len(_ZONE_Y_LABELS)), dtype=int)
+    for (xi, yi), count in passes.groupby(['start_xi', 'start_yi']).size().items():
+        occupancy[xi, yi] = count
+
+    forward = passes[passes['end_xi'] > passes['start_xi']]
+    transitions = forward.groupby(['start_xi', 'start_yi', 'end_xi', 'end_yi']).size().reset_index(name='count')
+    transitions = transitions[transitions['count'] >= min_transition_count]
+
+    pitch.draw(ax=ax)
+
+    cmap = plt.get_cmap('YlOrRd')
+    norm = Normalize(vmin=0, vmax=occupancy.max() if occupancy.max() > 0 else 1)
+    for xi in range(len(_ZONE_X_LABELS)):
+        for yi in range(len(_ZONE_Y_LABELS)):
+            count = occupancy[xi, yi]
+            rect = Rectangle(
+                (x_edges[xi], y_edges[yi]), x_edges[xi + 1] - x_edges[xi], y_edges[yi + 1] - y_edges[yi],
+                facecolor=cmap(norm(count)), alpha=0.55, edgecolor='none', zorder=0.15,
+            )
+            ax.add_patch(rect)
+            cx, cy = _zone_centroid(xi, yi, x_edges, y_edges)
+            ax.text(cx, cy, str(count), ha='center', va='center', color='white', fontsize=8,
+                    alpha=0.85, zorder=0.2)
+
+    max_count = transitions['count'].max() if not transitions.empty else 1
+    for _, row in transitions.iterrows():
+        x1, y1 = _zone_centroid(row['start_xi'], row['start_yi'], x_edges, y_edges)
+        x2, y2 = _zone_centroid(row['end_xi'], row['end_yi'], x_edges, y_edges)
+        width = 1 + (row['count'] / max_count) * 5
+        pitch.arrows(x1, y1, x2, y2, width=width, headwidth=4, headlength=4,
+                     color='#00f0ff', alpha=0.85, zorder=2, ax=ax)
+
+    ax.set_title(title, fontsize=13, color='white', pad=14, fontweight='bold')
+    return cmap, norm
+
+
+def _draw_chain_progression_mini_panel(ax, chain: pd.DataFrame, color: str, label: str):
+    """대표 체인 하나를 실제 좌표 그대로 순서대로 이어, 메인 히트맵과 겹치지 않는 전용 미니 피치에 그립니다."""
+    mini_pitch = Pitch(pitch_type='statsbomb', pitch_color='#1e1e1e', line_color='#c7d5cc', linewidth=1)
+    mini_pitch.draw(ax=ax)
+
+    xs = list(chain['x']) + [chain['end_x'].iloc[-1]]
+    ys = list(chain['y']) + [chain['end_y'].iloc[-1]]
+
+    for i in range(len(xs) - 1):
+        is_last = i == len(xs) - 2
+        mini_pitch.arrows(xs[i], ys[i], xs[i + 1], ys[i + 1],
+                          width=2.5, headwidth=6 if is_last else 3, headlength=6 if is_last else 3,
+                          color=color, alpha=0.95, zorder=2, ax=ax)
+    mini_pitch.scatter(xs[:-1], ys[:-1], s=35, color=color, edgecolors='white', linewidth=1, zorder=3, ax=ax)
+    mini_pitch.scatter([xs[0]], [ys[0]], s=90, color='white', edgecolors=color, linewidth=2, zorder=4, ax=ax)
+    ax.set_title(f"{label} ({len(chain)} passes)", fontsize=10, color=color, fontweight='bold', pad=6)
+
+
+def plot_possession_chain_progression(events_df: pd.DataFrame,
+                                      team_name: str,
+                                      min_chain_length: int = 2,
+                                      min_transition_count: int = 2,
+                                      title: Optional[str] = None) -> Tuple[plt.Figure, dict, pd.DataFrame]:
+    """possession id로 묶은 연속 빌드업 체인만 걸러 구역 전진 경로를 시각화합니다.
+
+    `plot_zone_progression()`은 매치 전체의 전진 패스를 possession 구분 없이 모두
+    집계하는 반면, 이 함수는 "같은 possession 안에서 팀의 성공 패스가
+    `min_chain_length`회 이상 연속으로 이어진" 진짜 빌드업 체인의 패스만 사용합니다
+    (`team`과 `possession_team`을 함께 걸러 상대 팀 이벤트가 섞이지 않게 함).
+    메인 패널은 `plot_zone_progression()`과 동일한 30구역 점유 히트맵 + 전진 화살표
+    스타일이고, 오른쪽에 왼쪽/오른쪽으로 끝난 체인 중 가장 긴 것을 하나씩 뽑아
+    실제 좌표 그대로 이은 미니 패널 2개를 추가로 보여줍니다 — "왼쪽 진출 루트가
+    몇 번의 패스를 거치는지"(spain_euro2024 분석 질문 6)를 구체적 사례로 확인하기
+    위함입니다. 대표 체인을 메인 히트맵 위에 그대로 겹쳐보면 왔다갔다하는 패스가
+    많은 체인일수록 선이 피치를 가로질러 기존 화살표와 뒤섞여 못 알아볼 정도로
+    지저분해지는 문제가 있어, 겹치지 않는 별도 미니 피치로 분리했습니다.
+
+    Args:
+        events_df (pd.DataFrame): 경기 이벤트 데이터 (data_loader.get_match_events)
+        team_name (str): 분석할 팀 이름
+        min_chain_length (int): 이 횟수 미만으로 성공 패스가 이어진 possession은
+            체인으로 보지 않고 제외합니다(패스 없이 소유권만 짧게 가진 구간 등).
+        min_transition_count (int): 메인 패널에서 이 횟수 미만으로 발생한 구역 간
+            전진 전환은 화살표로 표시하지 않습니다.
+        title (str, optional): 메인 패널 제목
+
+    Returns:
+        tuple: (fig, {'main': ax, 'left': ax, 'right': ax}, chain_summary) -
+        chain_summary는 체인별(possession id, 패스 수, 마지막 도착 구역
+        Left/Central/Right) 표입니다.
+    """
+    pitch = Pitch(pitch_type='statsbomb', pitch_color='#1e1e1e', line_color='#c7d5cc',
+                  positional=True, positional_color='#555555', positional_alpha=0.6,
+                  positional_linewidth=1, positional_linestyle='--')
+    x_edges = pitch.dim.positional_x
+    y_edges = pitch.dim.positional_y
+
+    passes = _prepare_chain_passes(events_df, team_name, min_chain_length, x_edges, y_edges)
+    summary = _chain_length_by_final_side(passes)
+
+    fig, axd = plt.subplot_mosaic(
+        [['main', 'left'], ['main', 'right']],
+        figsize=(17, 8.5), gridspec_kw={'width_ratios': [2.6, 1], 'wspace': 0.08, 'hspace': 0.25},
+    )
+    fig.set_facecolor('#1e1e1e')
+    for ax in axd.values():
+        ax.set_facecolor('#1e1e1e')
+
+    main_title = title if title else f"{team_name} Possession Chain Progression (chain length >= {min_chain_length})"
+    cmap, norm = _draw_chain_progression_main_panel(axd['main'], pitch, passes, x_edges, y_edges,
+                                                    min_transition_count, main_title)
+
+    left_candidates = summary[summary['final_side'] == 'Left'].sort_values('n_passes', ascending=False)
+    right_candidates = summary[summary['final_side'] == 'Right'].sort_values('n_passes', ascending=False)
+
+    if not left_candidates.empty:
+        left_chain = passes[passes['possession'] == left_candidates.iloc[0]['possession']].sort_values('index')
+        _draw_chain_progression_mini_panel(axd['left'], left_chain, color='#ffe14d', label='Longest chain -> Left')
+    if not right_candidates.empty:
+        right_chain = passes[passes['possession'] == right_candidates.iloc[0]['possession']].sort_values('index')
+        _draw_chain_progression_mini_panel(axd['right'], right_chain, color='#ff5cad', label='Longest chain -> Right')
+
+    sm = ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=axd['main'], fraction=0.03, pad=0.02)
+    cbar.set_label('Zone Occupancy (chain pass starts)', color='white', fontsize=9)
+    cbar.ax.yaxis.set_tick_params(color='white')
+    plt.setp(cbar.ax.get_yticklabels(), color='white')
+
+    return fig, axd, summary
+
+
 def plot_pizza_chart(params: List[str], values: List[float],
                      player_name: str, sub_title: str = "Percentile Rank vs Position") -> Tuple[plt.Figure, plt.Axes]:
     """선수의 스탯 백분위수를 피자(Pizza / Radar) 차트로 시각화합니다."""
