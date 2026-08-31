@@ -1,6 +1,6 @@
-# CLAUDE.md
+# GEMINI.md
 
-이 파일은 이 저장소에서 작업할 때 Claude Code(claude.ai/code)에게 제공되는 가이드입니다. 자주 쓰이지 않는 상세 가이드·도메인 지식은 `.claude/rules/`에 분리해뒀으니, 아래에서 링크하는 시점에 필요할 때 읽으세요.
+이 파일은 이 저장소에서 작업할 때 Gemini / Antigravity CLI에게 제공되는 가이드입니다. 자주 쓰이지 않는 상세 가이드·도메인 지식은 `.claude/rules/`에 분리해뒀으니, 아래에서 링크하는 시점에 필요할 때 읽으세요.
 
 ## 프로젝트 개요
 
@@ -11,15 +11,15 @@ StatsBomb 이벤트/추적 데이터를 불러와 피치 시각화(슛 맵, 패�
 1. **[`DECISIONS.md`](./DECISIONS.md)를 먼저 읽고 시작하세요.** 이 프로젝트의 주요 의사결정(왜 이렇게 구성했는지, 무엇을 의도적으로 하지 않았는지)이 시간순으로 기록되어 있습니다. 코드나 커밋 이력만으로는 알 수 없는 배경 맥락(예: git 연결 방식, 문서 언어 선택 이유)을 담고 있으므로, 과거 결정을 뒤집거나 재논의하기 전에 반드시 확인하세요. 새로운 의사결정을 내렸다면 `DECISIONS.md`에 같은 형식으로 항목을 추가하세요.
 2. **[`CLAUDE.md`](./CLAUDE.md)와 [`GEMINI.md`](./GEMINI.md)의 동기화 상태를 확인하고 유지하세요.** Claude Code와 Gemini / Antigravity CLI가 동일한 가이드와 규칙을 기반으로 작업할 수 있도록, 두 파일 중 한쪽에 규칙·아키텍처·명령어 등의 변경이 발생하면 다른 쪽에도 동일하게 반영해야 합니다.
 
-## CLAUDE.md 및 GEMINI.md 정기 검토
+## GEMINI.md 및 CLAUDE.md 정기 검토
 
-`DECISIONS.md`를 읽을 때 아래 조건 중 하나라도 해당하면 `CLAUDE.md`, `GEMINI.md`, `.claude/rules/*.md`를 함께 검토하세요. 문서가 실제 프로젝트 구조·관례와 조용히 어긋나는 것을 막기 위함입니다.
+`DECISIONS.md`를 읽을 때 아래 조건 중 하나라도 해당하면 `GEMINI.md`, `CLAUDE.md`, `.claude/rules/*.md`를 함께 검토하세요. 문서가 실제 프로젝트 구조·관례와 조용히 어긋나는 것을 막기 위함입니다.
 
-- **검토 트리거**: `DECISIONS.md`에서 제목에 "CLAUDE.md 검토" 또는 "GEMINI.md 검토"가 포함된 가장 최근 항목의 날짜가 오늘로부터 약 1개월 이상 지났을 때 / 그런 항목이 아직 없을 때 / 사용자가 "claude.md 검토해줘" 또는 "gemini.md 검토해줘"처럼 명시적으로 요청할 때 / 주제 폴더(`spain_euro2024/` 같은) 착수·완료가 3회 이상 누적돼 아키텍처 서술이 낡았을 가능성이 클 때.
+- **검토 트리거**: `DECISIONS.md`에서 제목에 "GEMINI.md 검토" 또는 "CLAUDE.md 검토"가 포함된 가장 최근 항목의 날짜가 오늘로부터 약 1개월 이상 지났을 때 / 그런 항목이 아직 없을 때 / 사용자가 "gemini.md 검토해줘" 또는 "claude.md 검토해줘"처럼 명시적으로 요청할 때 / 주제 폴더(`spain_euro2024/` 같은) 착수·완료가 3회 이상 누적돼 아키텍처 서술이 낡았을 가능성이 클 때.
 - **검토 절차**:
-  1. `CLAUDE.md`, `GEMINI.md`, `.claude/rules/*.md`를 처음부터 다시 읽는다.
+  1. `GEMINI.md`, `CLAUDE.md`, `.claude/rules/*.md`를 처음부터 다시 읽는다.
   2. 실제 폴더 구조(주제 폴더 목록, `notebooks/`·`scripts/`·`data/` 내용)와 최근 `DECISIONS.md` 항목을 대조해, 문서가 서술하는 관례가 여전히 맞는지 확인한다.
-  3. 어긋난 부분을 수정한다. 자주 참조하게 된 `.claude/rules/` 내용은 `CLAUDE.md`와 `GEMINI.md` 본문으로 끌어올리고, 반대로 문서가 다시 길어졌다면 자주 쓰이지 않는 부분을 `.claude/rules/`로 옮긴다.
+  3. 어긋난 부분을 수정한다. 자주 참조하게 된 `.claude/rules/` 내용은 `GEMINI.md`와 `CLAUDE.md` 본문으로 끌어올리고, 반대로 문서가 다시 길어졌다면 자주 쓰이지 않는 부분을 `.claude/rules/`로 옮긴다.
   4. 바뀐 내용이 있든 없든, 검토했다는 사실 자체를 `DECISIONS.md`에 "YYYY-MM-DD 문서 정기 검토" 항목으로 남긴다 (다음 검토 시점을 계산하는 기준점이 된다).
 
 ## 분석 워크플로우
@@ -28,7 +28,7 @@ StatsBomb 이벤트/추적 데이터를 불러와 피치 시각화(슛 맵, 패�
 
 각 단계의 세부 규칙(질문증강 화법, 데이터 검토 방법, 폴더 명명, `PLAN.md` 구성, 산출물 경로, 샌드박스 사용법)은 착수 시점에 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md)를 읽고 따르세요.
 
-일부 격리 가능한 작업은 서브에이전트(`.claude/agents/`)에 위임합니다: `data-review-run`(2단계 데이터 검토의 전사·실행, Haiku), `analysis-verifier`(완료 전 검증 스윕), `blog-draft`(블로그 마크다운 원고), `blog-html`(원고 → 인라인 스타일 HTML 변환, Haiku). 완전 기계적인 검사(엠대시·이미지 링크·`CLAUDE.md` ↔ `GEMINI.md` diff)는 결정론적 스크립트 `scripts/check_docs.py`로 뺐습니다. 데이터 검토에서 확인 항목 정하기와 결과 해석, 1단계 아이디어 논의, 분석 실행·함수 이터레이션·문서 갱신은 메인 세션이 유지합니다. 블로그는 발행 전 메인 세션에서 사실 대조 → 제목·프레이밍 확정 → `humanize-korean` 스킬로 AI 티 윤문 → `blog-html` HTML 변환 → 발행 순서를 거칩니다. 자세한 기준은 `analysis-workflow.md`의 "서브에이전트 분담"·"블로그 발행 전 검토" 절을 참고하세요.
+Claude Code는 격리 가능한 일부 작업(`data-review-run`: 2단계 데이터 검토의 전사·실행(Haiku), `analysis-verifier`: 완료 전 검증 스윕, `blog-draft`: 블로그 마크다운 원고, `blog-html`: 원고 → 인라인 스타일 HTML 변환(Haiku))을 서브에이전트(`.claude/agents/`)에 위임하도록 구성돼 있습니다. 완전 기계적인 문서 검사(엠대시·이미지 링크·`CLAUDE.md` ↔ `GEMINI.md` diff)는 결정론적 스크립트 `scripts/check_docs.py`로 뺐습니다 - 이건 CLI와 무관하게 그대로 쓰세요. 데이터 검토에서 확인 항목을 정하는 판단과 결과 해석은 메인 세션이 합니다. Gemini / Antigravity CLI는 서브에이전트 없이 나머지 작업을 세션에서 직접 수행하되, 위임 대상으로 정의된 작업 범위·산출물 규격(`.claude/agents/*.md`)과 `analysis-workflow.md`의 "서브에이전트 분담"·"2단계 - 데이터 검토 / 실행 분담" 절을 그대로 참고하세요. 블로그는 발행 전 사실 대조 → 제목·프레이밍 확정 → AI 티 윤문(`humanize-korean` 스킬 또는 동급 윤문 도구로 번역투·기계적 병렬·불릿 과다 등을 제거하되 수치·인용은 불변) → HTML 변환 → 발행 순서를 거칩니다(`analysis-workflow.md`의 "블로그 발행 전 검토" 절).
 
 ## 명령어
 
@@ -69,7 +69,7 @@ StatsBomb 이벤트/추적 데이터를 불러와 피치 시각화(슛 맵, 패�
 - 팀/주제별 전용 폴더(예: `spain_euro2024/`) - `ideas/backlog.md`에서 구체화된 주제에 착수하면 만드는 표준 폴더. `PLAN.md` + 노트북/스크립트 + `processed/`를 함께 둡니다.
 - `blog/` - 분석 결과를 외부 블로그(티스토리 등)에 발행하기 위해 재구성한 글 문서를 관리하는 최상위 폴더. `blog/<주제 폴더명>/`(예: `blog/spain_euro2024/`) 하위에 `BLOG_POST.md`(발행용 원고) + `BLOG_POST.html`(붙여넣기용 변환본)을 둡니다. 분석 산출물(이미지)은 여전히 해당 주제 폴더의 `processed/`가 원본이며, `blog/` 문서는 그 이미지를 상대 경로로 참조만 합니다 - 이미지를 옮기거나 복제하지 않습니다.
 
-- `.claude/agents/` - 분석 워크플로우의 격리 가능한 단계를 위임하는 서브에이전트 정의(`data-review-run`, `analysis-verifier`, `blog-draft`, `blog-html`). Claude Code 전용이며, 위임 기준은 `.claude/rules/analysis-workflow.md`의 "서브에이전트 분담" 절에 있습니다. 문서 정합성 결정론적 검사는 `scripts/check_docs.py`.
+- `.claude/agents/` - 분석 워크플로우의 격리 가능한 단계를 위임하는 서브에이전트 정의(`data-review-run`, `analysis-verifier`, `blog-draft`, `blog-html`). Claude Code 전용이며, Gemini에서는 이 정의를 해당 작업의 범위·산출물 규격 참고용으로 씁니다. 위임 기준은 `.claude/rules/analysis-workflow.md`의 "서브에이전트 분담" 절에 있습니다. 문서 정합성 결정론적 검사는 `scripts/check_docs.py`(CLI 무관).
 
 `notebooks/`·`scripts/`의 샌드박스 사용법은 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md), `data_loader`/`visualizer` 수정 시 필요한 StatsBomb 컬럼 규칙(좌표 언패킹, outcome 의미, 선수 이름/교체 처리)은 [`.claude/rules/statsbomb-data-notes.md`](./.claude/rules/statsbomb-data-notes.md)를 참고하세요.
 
