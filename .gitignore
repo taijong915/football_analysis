@@ -42,5 +42,6 @@ ENV/
 # data/raw/*
 # data/processed/*
 
-# 로컬 전용 PDF 내보내기 (RESULTS.md를 PDF로 저장한 것, 커밋하지 않음)
+# 로컬 전용 PDF 내보내기 (RESULTS.md/BLOG_POST.md를 PDF로 저장한 것, 커밋하지 않음)
 RESULTS.pdf
+BLOG_POST.pdf
