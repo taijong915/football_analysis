@@ -64,6 +64,7 @@ StatsBomb 이벤트/추적 데이터를 불러와 피치 시각화(슛 맵, 패�
 - `data/processed/` — 스타터 노트북/`example_analysis.py`·샌드박스 테스트의 산출물이 쌓이는 공용 폴더. 주제별 분석의 정식 산출물은 해당 주제 폴더의 `processed/`에 저장합니다. `data/raw/`는 README에 언급된 원본 데이터용 위치이나 아직 존재하지 않습니다.
 - `ideas/` — 분석 주제 백로그(`backlog.md`)를 관리하는 브레인스토밍 공간. 새 주제를 제안·착수할 때 상태(대기/구체화/진행중/완료/보류)를 함께 갱신하세요.
 - 팀/주제별 전용 폴더(예: `spain_euro2024/`) — `ideas/backlog.md`에서 구체화된 주제에 착수하면 만드는 표준 폴더. `PLAN.md` + 노트북/스크립트 + `processed/`를 함께 둡니다.
+- `blog/` — 분석 결과를 외부 블로그(티스토리 등)에 발행하기 위해 재구성한 글 문서를 관리하는 최상위 폴더. `blog/<주제 폴더명>/`(예: `blog/spain_euro2024/`) 하위에 `BLOG_POST.md`(발행용 원고) + `BLOG_POST.html`(붙여넣기용 변환본)을 둡니다. 분석 산출물(이미지)은 여전히 해당 주제 폴더의 `processed/`가 원본이며, `blog/` 문서는 그 이미지를 상대 경로로 참조만 합니다 — 이미지를 옮기거나 복제하지 않습니다.
 
 `notebooks/`·`scripts/`의 샌드박스 사용법은 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md), `data_loader`/`visualizer` 수정 시 필요한 StatsBomb 컬럼 규칙(좌표 언패킹, outcome 의미, 선수 이름/교체 처리)은 [`.claude/rules/statsbomb-data-notes.md`](./.claude/rules/statsbomb-data-notes.md)를 참고하세요.
 

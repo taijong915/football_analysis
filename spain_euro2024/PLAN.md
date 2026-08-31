@@ -87,7 +87,7 @@
 - possession 체인 추적 7경기 종합 결론: [`possession_chains/RESULTS.md`](./possession_chains/RESULTS.md) (완료)
 - 체인 효율(side별 xG/슈팅 전환율) + 선수 조합 밀도(L-L vs R-R) 비교 차트 → [`chain_outcomes/processed/spain_euro2024_chain_outcomes.png`](./chain_outcomes/processed/spain_euro2024_chain_outcomes.png) (완료)
 - 왼쪽 쏠림의 이유 종합 결론: [`chain_outcomes/RESULTS.md`](./chain_outcomes/RESULTS.md) (완료)
-- 종합 결과를 재구성한 블로그 발행용 문서: [`BLOG_POST.md`](./BLOG_POST.md) (진행 중)
+- 종합 결과를 재구성한 블로그 발행용 문서: [`blog/spain_euro2024/BLOG_POST.md`](../blog/spain_euro2024/BLOG_POST.md) (진행 중, 티스토리 HTML 모드용 [`BLOG_POST.html`](../blog/spain_euro2024/BLOG_POST.html) 포함)
 
 ## 진행 상황
 
