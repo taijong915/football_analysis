@@ -1,6 +1,6 @@
 """구역 기반 전진 경로(zone progression) 프로토타입
 
-피치를 mplsoccer의 Juego de Posición(포지션 플레이) 그리드로 나눈다 —
+피치를 mplsoccer의 Juego de Posición(포지션 플레이) 그리드로 나눈다 -
 `Pitch(positional=True)`가 그리는 표준 그리드를 그대로 쓴다(참고:
 https://spielverlagerung.com/2014/11/26/juego-de-posicion-a-short-explanation/).
 30구역별 패스 시작 위치 점유를 배경 음영으로, 구역 간 전진 패스 전환을 화살표로

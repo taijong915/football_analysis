@@ -57,18 +57,19 @@ StatsBomb 이벤트/추적 데이터를 불러와 피치 시각화(슛 맵, 패�
 
 ## 아키텍처
 
-- `src/data_loader.py` — `statsbombpy` 래퍼 + pandas 필터 헬퍼(`filter_player_events`, `filter_team_events`). 인증·로컬 데이터 파일 없이 StatsBomb 무료 오픈 데이터 API만 사용합니다.
-- `src/visualizer.py` — `mplsoccer` 기반 플로팅 함수들(`create_standard_pitch`, `plot_shot_map`, `plot_pass_map`, `plot_pizza_chart`, `plot_pass_network`). 디스크에 저장하지 않고 `(fig, ax)`를 반환하므로 저장은 호출부에서 `fig.savefig(...)`로 처리합니다.
-- `scripts/` — `example_analysis.py`(최초 셋업 예제 파이프라인) + 새 기능을 독립 스크립트로 테스트하는 샌드박스.
-- `notebooks/` — 스타터 노트북(`01`~`03`) + 새 함수를 `src/`로 승격하기 전 프로토타입하는 샌드박스. 주제별 분석은 여기가 아니라 전용 폴더에 둡니다.
-- `data/processed/` — 스타터 노트북/`example_analysis.py`·샌드박스 테스트의 산출물이 쌓이는 공용 폴더. 주제별 분석의 정식 산출물은 해당 주제 폴더의 `processed/`에 저장합니다. `data/raw/`는 README에 언급된 원본 데이터용 위치이나 아직 존재하지 않습니다.
-- `ideas/` — 분석 주제 백로그(`backlog.md`)를 관리하는 브레인스토밍 공간. 새 주제를 제안·착수할 때 상태(대기/구체화/진행중/완료/보류)를 함께 갱신하세요.
-- 팀/주제별 전용 폴더(예: `spain_euro2024/`) — `ideas/backlog.md`에서 구체화된 주제에 착수하면 만드는 표준 폴더. `PLAN.md` + 노트북/스크립트 + `processed/`를 함께 둡니다.
-- `blog/` — 분석 결과를 외부 블로그(티스토리 등)에 발행하기 위해 재구성한 글 문서를 관리하는 최상위 폴더. `blog/<주제 폴더명>/`(예: `blog/spain_euro2024/`) 하위에 `BLOG_POST.md`(발행용 원고) + `BLOG_POST.html`(붙여넣기용 변환본)을 둡니다. 분석 산출물(이미지)은 여전히 해당 주제 폴더의 `processed/`가 원본이며, `blog/` 문서는 그 이미지를 상대 경로로 참조만 합니다 — 이미지를 옮기거나 복제하지 않습니다.
+- `src/data_loader.py` - `statsbombpy` 래퍼 + pandas 필터 헬퍼(`filter_player_events`, `filter_team_events`). 인증·로컬 데이터 파일 없이 StatsBomb 무료 오픈 데이터 API만 사용합니다.
+- `src/visualizer.py` - `mplsoccer` 기반 플로팅 함수들(`create_standard_pitch`, `plot_shot_map`, `plot_pass_map`, `plot_pizza_chart`, `plot_pass_network`). 디스크에 저장하지 않고 `(fig, ax)`를 반환하므로 저장은 호출부에서 `fig.savefig(...)`로 처리합니다.
+- `scripts/` - `example_analysis.py`(최초 셋업 예제 파이프라인) + 새 기능을 독립 스크립트로 테스트하는 샌드박스.
+- `notebooks/` - 스타터 노트북(`01`~`03`) + 새 함수를 `src/`로 승격하기 전 프로토타입하는 샌드박스. 주제별 분석은 여기가 아니라 전용 폴더에 둡니다.
+- `data/processed/` - 스타터 노트북/`example_analysis.py`·샌드박스 테스트의 산출물이 쌓이는 공용 폴더. 주제별 분석의 정식 산출물은 해당 주제 폴더의 `processed/`에 저장합니다. `data/raw/`는 README에 언급된 원본 데이터용 위치이나 아직 존재하지 않습니다.
+- `ideas/` - 분석 주제 백로그(`backlog.md`)를 관리하는 브레인스토밍 공간. 새 주제를 제안·착수할 때 상태(대기/구체화/진행중/완료/보류)를 함께 갱신하세요.
+- 팀/주제별 전용 폴더(예: `spain_euro2024/`) - `ideas/backlog.md`에서 구체화된 주제에 착수하면 만드는 표준 폴더. `PLAN.md` + 노트북/스크립트 + `processed/`를 함께 둡니다.
+- `blog/` - 분석 결과를 외부 블로그(티스토리 등)에 발행하기 위해 재구성한 글 문서를 관리하는 최상위 폴더. `blog/<주제 폴더명>/`(예: `blog/spain_euro2024/`) 하위에 `BLOG_POST.md`(발행용 원고) + `BLOG_POST.html`(붙여넣기용 변환본)을 둡니다. 분석 산출물(이미지)은 여전히 해당 주제 폴더의 `processed/`가 원본이며, `blog/` 문서는 그 이미지를 상대 경로로 참조만 합니다 - 이미지를 옮기거나 복제하지 않습니다.
 
 `notebooks/`·`scripts/`의 샌드박스 사용법은 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md), `data_loader`/`visualizer` 수정 시 필요한 StatsBomb 컬럼 규칙(좌표 언패킹, outcome 의미, 선수 이름/교체 처리)은 [`.claude/rules/statsbomb-data-notes.md`](./.claude/rules/statsbomb-data-notes.md)를 참고하세요.
 
 ## 참고 사항
 
+- 문서(`.md`, `blog/`의 원고 등)를 작성·수정할 때 엠대시("—", U+2014)와 엔대시("–", U+2013)를 쓰지 말고 하이픈("-")을 사용하세요. 문장 중간 삽입구는 하이픈 앞뒤에 공백을 두거나(" - ") 쉼표·괄호로 대체하고, 숫자 범위도 하이픈으로 씁니다(예: "0-18").
 - 소스 코드의 주석, 독스트링, README는 한글로 작성되어 있습니다. `src/`나 `scripts/`를 수정할 때 이 스타일을 따르세요.
 - `scripts/example_analysis.py`는 Windows에서 한글을 올바르게 출력하기 위해 stdout을 UTF-8로 재설정합니다(`sys.stdout.reconfigure`). Windows에서 콘솔 출력을 추가할 때 이를 유지하세요.
