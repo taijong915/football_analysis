@@ -46,5 +46,8 @@ ENV/
 RESULTS.pdf
 BLOG_POST.pdf
 
-# 블로그 발행용 문서 폴더 — 로컬에서만 관리, git에 올리지 않음
+# 블로그 발행용 문서 폴더 - 로컬에서만 관리, git에 올리지 않음
 blog/
+
+# humanize-korean 등 스킬의 작업 스크래치 디렉터리 - 커밋하지 않음
+_workspace/

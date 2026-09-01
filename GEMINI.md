@@ -28,7 +28,7 @@ StatsBomb 이벤트/추적 데이터를 불러와 피치 시각화(슛 맵, 패�
 
 각 단계의 세부 규칙(질문증강 화법, 데이터 검토 방법, 폴더 명명, `PLAN.md` 구성, 산출물 경로, 샌드박스 사용법)은 착수 시점에 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md)를 읽고 따르세요.
 
-Claude Code는 격리 가능한 일부 작업(`data-review-run`: 2단계 데이터 검토의 전사·실행(Haiku), `analysis-verifier`: 완료 전 검증 스윕, `blog-draft`: 블로그 마크다운 원고, `blog-html`: 원고 → 인라인 스타일 HTML 변환(Haiku))을 서브에이전트(`.claude/agents/`)에 위임하도록 구성돼 있습니다. 완전 기계적인 문서 검사(엠대시·이미지 링크·`CLAUDE.md` ↔ `GEMINI.md` diff)는 결정론적 스크립트 `scripts/check_docs.py`로 뺐습니다 - 이건 CLI와 무관하게 그대로 쓰세요. 데이터 검토에서 확인 항목을 정하는 판단과 결과 해석은 메인 세션이 합니다. Gemini / Antigravity CLI는 서브에이전트 없이 나머지 작업을 세션에서 직접 수행하되, 위임 대상으로 정의된 작업 범위·산출물 규격(`.claude/agents/*.md`)과 `analysis-workflow.md`의 "서브에이전트 분담"·"2단계 - 데이터 검토 / 실행 분담" 절을 그대로 참고하세요. 블로그는 발행 전 사실 대조 → 제목·프레이밍 확정 → AI 티 윤문(`humanize-korean` 스킬 또는 동급 윤문 도구로 번역투·기계적 병렬·불릿 과다 등을 제거하되 수치·인용은 불변) → HTML 변환 → 발행 순서를 거칩니다(`analysis-workflow.md`의 "블로그 발행 전 검토" 절).
+Claude Code는 격리 가능한 일부 작업(`data-review-run`: 2단계 데이터 검토의 전사·실행(Haiku), `analysis-verifier`: 완료 전 검증 스윕, `blog-draft`: 블로그 마크다운 원고, `blog-html`: 원고 → 인라인 스타일 HTML 변환(Haiku))을 서브에이전트(`.claude/agents/`)에 위임하도록 구성돼 있습니다. 완전 기계적인 문서 검사(엠대시·이미지 링크·`CLAUDE.md` ↔ `GEMINI.md` diff)는 결정론적 스크립트 `scripts/check_docs.py`로 뺐습니다 - 이건 CLI와 무관하게 그대로 쓰세요. 데이터 검토에서 확인 항목을 정하는 판단과 결과 해석은 메인 세션이 합니다. Gemini / Antigravity CLI는 서브에이전트 없이 나머지 작업을 세션에서 직접 수행하되, 위임 대상으로 정의된 작업 범위·산출물 규격(`.claude/agents/*.md`)과 `analysis-workflow.md`의 "서브에이전트 분담"·"2단계 - 데이터 검토 / 실행 분담" 절을 그대로 참고하세요. 블로그는 발행 전 사실 대조 → 제목·프레이밍 확정 → AI 티 윤문(`humanize-korean` 스킬 또는 동급 윤문 도구로 번역투·기계적 병렬·불릿 과다 등을 제거하되 수치·인용은 불변) → HTML 변환 → 태그 선정(질문증강 방식) → 발행 순서를 거칩니다(`analysis-workflow.md`의 "블로그 발행 전 검토" 절).
 
 ## 명령어
 

@@ -32,7 +32,7 @@
   - possession 체인 추적: `plot_possession_chain_progression()`(`src/visualizer.py`), `spain_euro2024/possession_chains/06_spain_euro2024_possession_chains.ipynb`로 7경기 실행, 종합 결과는 [`spain_euro2024/possession_chains/RESULTS.md`](../spain_euro2024/possession_chains/RESULTS.md) - 7경기 중 6경기에서 왼쪽으로 끝난 체인의 중앙값 패스 수가 오른쪽보다 많음.
   - 왼쪽 쏠림의 이유(득점 효율 + 선수 조합 밀도 + 크로스/어시스트 위치): `spain_euro2024/chain_outcomes/08_spain_euro2024_chain_outcomes.ipynb`로 7경기 실행, 종합 결과는 [`spain_euro2024/chain_outcomes/RESULTS.md`](../spain_euro2024/chain_outcomes/RESULTS.md) - 득점 효율은 원인이 아니었음(중앙 체인이 압도적으로 효율적, 골/슈팅 어시스트 좌우 비율도 유의미하지 않음), 선수 조합 밀도(왼쪽 포지션끼리 패스 연결 57.2%, p=0.008)와 크로스 빈도(왼쪽 60.5%, p=0.011)가 통계적으로 뒷받침되는 원인.
   - 다섯 방법론을 종합한 "스페인 빌드업 스타일" 최종 결론: [`spain_euro2024/RESULTS.md`](../spain_euro2024/RESULTS.md) - 구조는 거의 좌우 대칭(센터백 넓게 벌림 + 로드리 축 + 양쪽 풀백 전진)이지만 실제 전진 방향은 통계적으로 유의미하게 왼쪽으로 쏠렸고, 그 쏠림은 선수 관여도보다 최종 목적지에서 더 크게 증폭되며, 왼쪽 진출 빌드업은 더 많은 패스를 거쳐 조립됨 - 원인은 득점 효율이 아니라 왼쪽 포지션 조합·크로스의 잦은 활용.
-  - 블로그 발행용 종합 문서: [`blog/spain_euro2024/BLOG_POST.md`](../blog/spain_euro2024/BLOG_POST.md). 2026-08-31 티스토리 공개 발행 완료 → https://tj-archive.tistory.com/1
+  - 블로그 발행용 종합 문서: [`blog/spain_euro2024/BLOG_POST.md`](../blog/spain_euro2024/BLOG_POST.md). 2026-09-01 티스토리 공개 발행 완료 → https://tj-archive.tistory.com/2 (기존 #1은 삭제 후 재발행, `DECISIONS.md` 2026-09-01 항목 참고)
 
 ## 보류
 
