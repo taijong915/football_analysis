@@ -103,6 +103,21 @@ def band_visibility(path, def_line, band_width):
     points = np.column_stack((def_line + _BAND_U * (x_max - def_line), _BAND_Y))
     return float(path.contains_points(points).mean())
 
+def launch_visibility(path, def_line, depth=10):
+    """출발 구역 [def_line - depth, def_line] x [2, 78]의 가시 격자점 비율.
+
+    침투 선택지는 수비 라인 뒤가 아니라 라인 바로 앞(온사이드)에서 출발하므로,
+    실제로 커버리지를 확인해야 하는 구역은 여기다. 공과 수비 라인 사이라
+    중계 카메라가 거의 항상 담는다(라인 뒤 0.33 vs 이 구역 0.80).
+    """
+    if path is None:
+        return np.nan
+    lo = max(0.0, def_line - depth)
+    if def_line <= lo:
+        return np.nan
+    points = np.column_stack((lo + _BAND_U * (def_line - lo), _BAND_Y))
+    return float(path.contains_points(points).mean())
+
 def build_frame_index(frames):
     """프레임 DataFrame을 이벤트별로 미리 쪼개 둔다.
 
@@ -212,10 +227,11 @@ def analyze_match(match_id, match_info):
     home_team, away_team = match_info['home_team'], match_info['away_team']
     situation_rows = []
 
-    for event_id, team, period, minute, second, ball_x in zip(
+    for event_id, team, period, minute, second, ball_x, pass_type in zip(
             progression_events['id'], progression_events['team'],
             progression_events['period'], progression_events['minute'],
-            progression_events['second'], progression_events['x']):
+            progression_events['second'], progression_events['x'],
+            progression_events['pass_type']):
         span = index['slices'].get(event_id)
         if span is None:
             continue
@@ -237,10 +253,18 @@ def analyze_match(match_id, match_info):
 
         band15 = band_visibility(path, def_line, 15)
         band10 = band_visibility(path, def_line, 10)
+        vis_launch = launch_visibility(path, def_line, 10)
 
         # 액터·골키퍼를 뺀 아군 필드플레이어 (최대 9명)
         mate_x = frame_loc[is_mate & (~is_keeper) & (~is_actor), 0]
         mate_x = mate_x[~np.isnan(mate_x)]
+
+        # 채택된 침투 선택지 정의: 패스 시점에 온사이드(라인 이하)이면서 라인에
+        # 근접하고 공보다 앞에 있는 아군. 라인보다 앞(n_beyond)은 규칙상
+        # 오프사이드 위치이므로 침투 선택지가 아니라 대조군으로만 쓴다.
+        onside_ahead = (mate_x <= def_line) & (mate_x > ball_x)
+        n_launch = int((onside_ahead & (mate_x >= def_line - 10)).sum())
+        n_launch5 = int((onside_ahead & (mate_x >= def_line - 5)).sum())
 
         situation_rows.append({
             'match_id': match_id,
@@ -256,8 +280,12 @@ def analyze_match(match_id, match_info):
             'band10': round(band10, 3) if not np.isnan(band10) else np.nan,
             'vis_depth': round(float(coords[:, 0].max()) - def_line, 2),
             'n_opp_visible': int(opponent_x.size),
+            'vis_launch': round(vis_launch, 3) if not np.isnan(vis_launch) else np.nan,
             'n_tm_visible': int(min(mate_x.size, 9)),
+            'n_launch': n_launch,
+            'n_launch5': n_launch5,
             'n_beyond': int((mate_x > def_line).sum()),
+            'setpiece': not pd.isna(pass_type),
             'pre_first_goal': first_goal_minute is None or minute < first_goal_minute,
         })
 

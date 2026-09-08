@@ -1,7 +1,9 @@
 """Football Data Visualization Utilities using mplsoccer & matplotlib
 """
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Polygon, PathPatch
+from matplotlib.path import Path as MplPath
+from matplotlib import font_manager
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 import pandas as pd
@@ -689,4 +691,184 @@ def plot_pizza_chart(params: List[str], values: List[float],
 
     fig.text(0.515, 0.97, player_name, size=18, ha="center", color="#F2F2F2", weight="bold")
     fig.text(0.515, 0.93, sub_title, size=11, ha="center", color="#B0B0B0")
+    return fig, ax
+
+
+def _ensure_korean_font() -> None:
+    """제목·범례에 한글을 쓰는 플롯을 위해 한글 폰트를 지정합니다.
+
+    지정하지 않으면 한글이 두부(tofu) 상자로 깨집니다. 임포트 시점이 아니라
+    한글을 쓰는 함수 안에서 호출해, 라이브러리를 불러오는 것만으로 전역
+    rcParams가 바뀌지 않게 합니다.
+    """
+    if plt.rcParams['font.family'] and plt.rcParams['font.family'][0] in ('Malgun Gothic', 'NanumGothic', 'Gulim'):
+        return
+    installed = {f.name for f in font_manager.fontManager.ttflist}
+    for name in ('Malgun Gothic', 'NanumGothic', 'Gulim'):
+        if name in installed:
+            plt.rcParams['font.family'] = name
+            plt.rcParams['axes.unicode_minus'] = False
+            return
+
+
+def _unpack_xy(loc) -> Tuple[float, float]:
+    """StatsBomb의 `[x, y]` 리스트를 `(x, y)`로. 형태가 아니면 `(nan, nan)`."""
+    if isinstance(loc, (list, np.ndarray)) and len(loc) >= 2:
+        return float(loc[0]), float(loc[1])
+    return np.nan, np.nan
+
+
+def _parse_visible_area(visible_area) -> Optional[np.ndarray]:
+    """360의 `visible_area`를 `(N, 2)` 좌표 배열로 폅니다.
+
+    x, y가 번갈아 나오는 평평한 리스트로 들어오므로 `reshape(-1, 2)`가 필요하고,
+    좌표가 3쌍 미만이면 다각형이 되지 않으므로 None을 돌려줍니다.
+    """
+    if not isinstance(visible_area, (list, np.ndarray)) or len(visible_area) < 6:
+        return None
+    try:
+        coords = np.asarray(visible_area, dtype=float).reshape(-1, 2)
+    except Exception:
+        return None
+    return coords if len(coords) >= 3 else None
+
+
+def _signed_area(polygon: np.ndarray) -> float:
+    """다각형의 부호 있는 면적(감김 방향 판별용)."""
+    x, y = polygon[:, 0], polygon[:, 1]
+    return 0.5 * float(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+
+
+def plot_freeze_frame(frame_df: pd.DataFrame,
+                      ball_location=None,
+                      launch_depth: float = 5.0,
+                      title: str = '',
+                      subtitle: str = '',
+                      pitch_color: str = '#1e1e1e',
+                      line_color: str = '#c7d5cc',
+                      figsize: Tuple[float, float] = (13, 8.5)) -> Tuple[plt.Figure, plt.Axes]:
+    """StatsBomb 360 프리즈프레임 한 장을 피치에 그립니다.
+
+    이벤트의 행동 팀(`teammate=True`)이 x=120 방향으로 공격하는 좌표계를
+    전제합니다. 추정 오프사이드 라인(상대 필드플레이어 x의 최댓값)을 세로선으로
+    긋고, 그 **앞** `launch_depth` m 구간("출발 구역")을 띠로 칠합니다.
+
+    강조는 두 가지입니다. **침투 선택지**(청록 링) = 패스 시점에 온사이드이면서
+    출발 구역 안에 있고 공보다 앞에 선 아군, **오프사이드 위치**(주황 링) =
+    라인보다 앞에 있는 아군. 후자는 규칙상 침투 선택지가 아니므로 대조군입니다
+    (`.claude/rules/statsbomb-data-notes.md`의 360 절 참고).
+
+    `visible_area` 밖은 어둡게 덮어 "안 보여서 기록되지 않은 구역"을 드러냅니다.
+    360은 화면에 잡힌 선수만 기록하므로(기록된 선수의 98% 이상이 이 다각형 안),
+    이 경계를 감추면 "없었던 것"과 "안 잡힌 것"이 구분되지 않습니다.
+
+    Args:
+        frame_df (pd.DataFrame): 한 이벤트의 프레임 행들(`sb.frames()` 결과에서
+            `id`가 같은 행). `teammate`, `actor`, `keeper`, `location`,
+            `visible_area` 컬럼이 필요합니다.
+        ball_location: 공 위치 `[x, y]`. None이면 `actor` 선수 위치를 씁니다.
+        launch_depth (float): 출발 구역 깊이(m). 기본 5.
+        title (str): 제목
+        subtitle (str): 부제(경기·시각·가시율 등)
+        pitch_color (str): 잔디/배경 색상
+        line_color (str): 라인 색상
+        figsize (tuple): Figure 크기
+
+    Returns:
+        tuple: (fig, ax). 디스크에 저장하지 않으므로 호출부에서
+        `fig.savefig(...)`로 처리합니다.
+    """
+    _ensure_korean_font()
+
+    pitch = Pitch(pitch_type='statsbomb', pitch_color=pitch_color,
+                  line_color=line_color, line_zorder=2)
+    fig, ax = pitch.draw(figsize=figsize)
+    fig.set_facecolor(pitch_color)
+
+    xy = np.array([_unpack_xy(loc) for loc in frame_df['location']], dtype=float)
+    is_mate = frame_df['teammate'].to_numpy(bool)
+    is_keeper = frame_df['keeper'].to_numpy(bool)
+    is_actor = frame_df['actor'].to_numpy(bool)
+    valid = ~np.isnan(xy[:, 0])
+
+    # 가시 영역 밖을 어둡게 덮는다. 피치 전체를 덮는 사각형 안에 가시 영역을
+    # 구멍으로 뚫는데, matplotlib의 기본 채우기 규칙(nonzero)에서는 바깥 고리와
+    # 안쪽 고리의 감김 방향이 반대여야 구멍이 뚫린다.
+    coords = _parse_visible_area(frame_df['visible_area'].iloc[0])
+    if coords is not None:
+        inner = coords[:-1] if np.allclose(coords[0], coords[-1]) else coords
+        outer = np.array([[0, 0], [120, 0], [120, 80], [0, 80]], dtype=float)
+        if np.sign(_signed_area(inner)) == np.sign(_signed_area(outer)):
+            inner = inner[::-1]
+        ring = np.vstack([outer, outer[:1], inner, inner[:1]])
+        codes = ([MplPath.MOVETO] + [MplPath.LINETO] * 3 + [MplPath.CLOSEPOLY]
+                 + [MplPath.MOVETO] + [MplPath.LINETO] * (len(inner) - 1)
+                 + [MplPath.CLOSEPOLY])
+        ax.add_patch(PathPatch(MplPath(ring, codes), facecolor='#000000',
+                               alpha=0.6, edgecolor='none', zorder=1.5))
+        ax.add_patch(Polygon(inner, closed=True, fill=False, edgecolor='#f0c419',
+                             linestyle=(0, (4, 3)), linewidth=1.3, alpha=0.85, zorder=3))
+
+    # 추정 오프사이드 라인 = 상대 필드플레이어 x의 최댓값. 골키퍼는 프레임에
+    # 잡히는 비율이 낮아(전진 상황에서 4%) 기준으로 쓸 수 없다.
+    opponent_field = (~is_mate) & (~is_keeper) & valid
+    def_line = float(xy[opponent_field, 0].max()) if opponent_field.any() else np.nan
+
+    ball_x = np.nan
+    if ball_location is not None:
+        ball_x, _ = _unpack_xy(ball_location)
+    elif (is_actor & valid).any():
+        ball_x = xy[is_actor & valid][0][0]
+
+    n_launch = n_offside = 0
+    if not np.isnan(def_line):
+        ax.axvline(def_line, color='#ff6b6b', linestyle='--', linewidth=1.6,
+                   alpha=0.9, zorder=3)
+        ax.axvspan(max(0.0, def_line - launch_depth), def_line, color='#2ec4b6',
+                   alpha=0.16, zorder=1.6)
+        # mplsoccer는 y축을 반전시키므로 음수 y가 피치 위쪽이다.
+        ax.text(def_line, -2.5, f'추정 오프사이드 라인 x={def_line:.1f}',
+                color='#ff6b6b', fontsize=9.5, ha='center', va='bottom', zorder=4,
+                bbox=dict(facecolor=pitch_color, edgecolor='none', pad=1.5, alpha=0.85))
+
+        mate_field = is_mate & (~is_keeper) & (~is_actor) & valid
+        ahead_of_ball = xy[:, 0] > ball_x if not np.isnan(ball_x) else np.ones(len(xy), bool)
+        launch_sel = (mate_field & (xy[:, 0] <= def_line)
+                      & (xy[:, 0] >= def_line - launch_depth) & ahead_of_ball)
+        offside_sel = mate_field & (xy[:, 0] > def_line)
+        n_launch, n_offside = int(launch_sel.sum()), int(offside_sel.sum())
+
+        if launch_sel.any():
+            ax.scatter(xy[launch_sel, 0], xy[launch_sel, 1], s=520, facecolors='none',
+                       edgecolors='#2ec4b6', linewidths=2.6, zorder=5)
+        if offside_sel.any():
+            ax.scatter(xy[offside_sel, 0], xy[offside_sel, 1], s=520, facecolors='none',
+                       edgecolors='#ff9f1c', linewidths=2.6, zorder=5)
+
+    def _draw(selection, **kwargs):
+        if selection.any():
+            ax.scatter(xy[selection, 0], xy[selection, 1], zorder=6, **kwargs)
+
+    _draw(is_mate & (~is_keeper) & (~is_actor) & valid, s=210, c='#4ea8de',
+          edgecolors='white', linewidths=0.9, label='아군')
+    _draw((~is_mate) & (~is_keeper) & valid, s=210, c='#e5e5e5',
+          edgecolors='#333333', linewidths=0.9, label='상대')
+    _draw(is_mate & is_keeper & valid, s=230, c='#4ea8de', marker='s',
+          edgecolors='white', linewidths=0.9, label='아군 GK')
+    _draw((~is_mate) & is_keeper & valid, s=230, c='#e5e5e5', marker='s',
+          edgecolors='#333333', linewidths=0.9, label='상대 GK')
+    _draw(is_actor & valid, s=330, c='#ffd166', marker='*',
+          edgecolors='#333333', linewidths=0.8, label='공 소유자')
+
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.02), ncol=5, frameon=False,
+              labelcolor=line_color, fontsize=9.5)
+
+    head = title or '360 프리즈프레임'
+    counts = (f'침투 선택지 {n_launch}명 (라인 앞 {launch_depth:.0f}m)'
+              f' · 오프사이드 위치 {n_offside}명')
+    ax.set_title(f'{head}\n{subtitle}\n{counts}' if subtitle else f'{head}\n{counts}',
+                 color=line_color, fontsize=13, pad=18)
+    fig.text(0.5, -0.02,
+             '노란 점선 = visible_area 경계. 바깥 어두운 구역은 화면에 안 잡혀 선수가 기록되지 않은 곳이다.',
+             color='#8d99ae', fontsize=9, ha='center')
     return fig, ax
