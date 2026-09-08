@@ -38,9 +38,9 @@ ENV/
 .vscode/
 .idea/
 
-# Data files (optional: un-comment if storing large datasets)
-# data/raw/*
-# data/processed/*
+# 원본 데이터 캐시 (StatsBomb 360 프레임 등 대용량) - 커밋하지 않음
+data/raw/
+# data/processed/ 는 커밋한다 (스타터/샌드박스 산출물)
 
 # 로컬 전용 PDF 내보내기 (RESULTS.md/BLOG_POST.md를 PDF로 저장한 것, 커밋하지 않음)
 RESULTS.pdf
