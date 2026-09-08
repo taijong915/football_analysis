@@ -4,7 +4,7 @@
 
 ## 프로젝트 개요
 
-StatsBomb 이벤트/추적 데이터를 불러와 피치 시각화(슛 맵, 패스 맵, 레이더/피자 차트)를 생성하는 Python 축구 분석 환경입니다. GitHub 저장소 `taijong915/football_analysis`의 `main` 브랜치에 연결되어 있습니다.
+StatsBomb 오픈 데이터(이벤트 데이터 + 일부 대회는 360 프리즈프레임 포함)를 불러와 피치 시각화(슛 맵, 패스 맵, 패스 네트워크, 구역 전진 경로, 레이더/피자 차트)를 생성하는 Python 축구 분석 환경입니다. GitHub 저장소 `taijong915/football_analysis`의 `main` 브랜치에 연결되어 있습니다.
 
 ## 세션 시작 시 필독
 
@@ -28,7 +28,7 @@ StatsBomb 이벤트/추적 데이터를 불러와 피치 시각화(슛 맵, 패�
 
 각 단계의 세부 규칙(질문증강 화법, 데이터 검토 방법, 폴더 명명, `PLAN.md` 구성, 산출물 경로, 샌드박스 사용법)은 착수 시점에 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md)를 읽고 따르세요.
 
-일부 격리 가능한 작업은 서브에이전트(`.claude/agents/`)에 위임합니다: `data-review-run`(2단계 데이터 검토의 전사·실행, Haiku), `analysis-verifier`(완료 전 검증 스윕), `blog-draft`(블로그 마크다운 원고), `blog-html`(원고 → 인라인 스타일 HTML 변환, Haiku). 완전 기계적인 검사(엠대시·이미지 링크·`CLAUDE.md` ↔ `GEMINI.md` diff)는 결정론적 스크립트 `scripts/check_docs.py`로 뺐습니다. 데이터 검토에서 확인 항목 정하기와 결과 해석, 1단계 아이디어 논의, 분석 실행·함수 이터레이션·문서 갱신은 메인 세션이 유지합니다. 블로그는 발행 전 메인 세션에서 사실 대조 → 제목·프레이밍 확정 → `humanize-korean` 스킬로 AI 티 윤문 → `blog-html` HTML 변환 → 태그 선정(질문증강 방식) → 발행 순서를 거칩니다. 자세한 기준은 `analysis-workflow.md`의 "서브에이전트 분담"·"블로그 발행 전 검토" 절을 참고하세요.
+격리 가능한 일부 작업은 서브에이전트(`.claude/agents/`)에 위임합니다: `data-review-run`(2단계 데이터 검토의 전사·실행, Haiku), `analysis-verifier`(완료 전 검증 스윕), `blog-draft`(블로그 마크다운 원고), `blog-html`(원고 → 인라인 스타일 HTML 변환, Haiku). 서브에이전트 위임은 Claude Code 전용 기능이므로, Gemini / Antigravity CLI는 같은 작업을 세션에서 직접 수행하되 `.claude/agents/*.md`의 작업 범위·산출물 규격과 `analysis-workflow.md`의 "서브에이전트 분담"·"2단계 - 데이터 검토 / 실행 분담" 절을 그대로 참고하세요. 완전 기계적인 검사(엠대시·이미지 링크·`CLAUDE.md` ↔ `GEMINI.md` diff)는 결정론적 스크립트 `scripts/check_docs.py`로 뺐습니다 - 이건 CLI와 무관하게 그대로 씁니다. 데이터 검토에서 확인 항목 정하기와 결과 해석, 1단계 아이디어 논의, 분석 실행·함수 이터레이션·문서 갱신은 메인 세션이 유지합니다. 블로그는 발행 전 메인 세션에서 사실 대조 → 제목·프레이밍 확정 → `humanize-korean` 스킬(또는 동급 윤문 도구)로 AI 티 윤문 → HTML 변환 → 태그 선정(질문증강 방식) → 발행 순서를 거칩니다. 자세한 기준은 `analysis-workflow.md`의 "서브에이전트 분담"·"블로그 발행 전 검토" 절을 참고하세요.
 
 ## 명령어
 
@@ -60,16 +60,17 @@ StatsBomb 이벤트/추적 데이터를 불러와 피치 시각화(슛 맵, 패�
 
 ## 아키텍처
 
-- `src/data_loader.py` - `statsbombpy` 래퍼 + pandas 필터 헬퍼(`filter_player_events`, `filter_team_events`). 인증·로컬 데이터 파일 없이 StatsBomb 무료 오픈 데이터 API만 사용합니다.
-- `src/visualizer.py` - `mplsoccer` 기반 플로팅 함수들(`create_standard_pitch`, `plot_shot_map`, `plot_pass_map`, `plot_pizza_chart`, `plot_pass_network`). 디스크에 저장하지 않고 `(fig, ax)`를 반환하므로 저장은 호출부에서 `fig.savefig(...)`로 처리합니다.
-- `scripts/` - `example_analysis.py`(최초 셋업 예제 파이프라인) + 새 기능을 독립 스크립트로 테스트하는 샌드박스.
+- `src/data_loader.py` - `statsbombpy` 래퍼(`get_available_competitions`, `get_competition_matches`, `get_match_events`, `get_match_lineups`) + pandas 필터 헬퍼(`filter_player_events`, `filter_team_events`). 인증·로컬 데이터 파일 없이 StatsBomb 무료 오픈 데이터 API만 사용합니다.
+- `src/visualizer.py` - `mplsoccer` 기반 플로팅 함수들. 기본 피치·차트(`create_standard_pitch`, `plot_shot_map`, `plot_pass_map`, `plot_pizza_chart`)와 주제 분석에서 검증 후 승격된 빌드업 시각화(`plot_pass_network`, `plot_pass_network_by_position`, `plot_zone_progression`, `plot_possession_chain_progression`)가 함께 있습니다. 디스크에 저장하지 않고 `(fig, ax)`를 반환하므로 저장은 호출부에서 `fig.savefig(...)`로 처리합니다.
+- `scripts/` - `example_analysis.py`(최초 셋업 예제 파이프라인), `check_docs.py`(문서 정합성 결정론적 검사), 2단계 데이터 검토의 산출물인 `review_<주제>_data.py`, 새 함수를 `src/`로 승격하기 전에 검증하는 `test_*.py` 프로토타입이 함께 쌓이는 폴더입니다.
 - `notebooks/` - 스타터 노트북(`01`~`03`) + 새 함수를 `src/`로 승격하기 전 프로토타입하는 샌드박스. 주제별 분석은 여기가 아니라 전용 폴더에 둡니다.
 - `data/processed/` - 스타터 노트북/`example_analysis.py`·샌드박스 테스트의 산출물이 쌓이는 공용 폴더. 주제별 분석의 정식 산출물은 해당 주제 폴더의 `processed/`에 저장합니다. `data/raw/`는 README에 언급된 원본 데이터용 위치이나 아직 존재하지 않습니다.
 - `ideas/` - 분석 주제 백로그(`backlog.md`)를 관리하는 브레인스토밍 공간. 새 주제를 제안·착수할 때 상태(대기/구체화/진행중/완료/보류)를 함께 갱신하세요.
-- 팀/주제별 전용 폴더(예: `spain_euro2024/`) - `ideas/backlog.md`에서 구체화된 주제에 착수하면 만드는 표준 폴더. `PLAN.md` + 노트북/스크립트 + `processed/`를 함께 둡니다.
-- `blog/` - 분석 결과를 외부 블로그(티스토리 등)에 발행하기 위해 재구성한 글 문서를 관리하는 최상위 폴더. `blog/<주제 폴더명>/`(예: `blog/spain_euro2024/`) 하위에 `BLOG_POST.md`(발행용 원고) + `BLOG_POST.html`(붙여넣기용 변환본)을 둡니다. 분석 산출물(이미지)은 여전히 해당 주제 폴더의 `processed/`가 원본이며, `blog/` 문서는 그 이미지를 상대 경로로 참조만 합니다 - 이미지를 옮기거나 복제하지 않습니다.
+- 팀/주제별 전용 폴더(예: `spain_euro2024/`) - `ideas/backlog.md`에서 구체화된 주제에 착수하면 만드는 표준 폴더. `PLAN.md` + 노트북/스크립트 + `processed/`를 함께 둡니다. 한 주제 안에서 방법론이 여러 갈래로 나뉘면 방법론별 하위 폴더를 만들어 그 안에 노트북·`processed/`·`RESULTS.md`를 두고(`spain_euro2024/`는 이렇게 다섯 갈래로 나뉘어 있습니다), 최상위 `PLAN.md`가 전체 기획을, 주제 폴더의 `RESULTS.md`가 종합 결론을 맡습니다.
+- `blog/` - 분석 결과를 외부 블로그(티스토리 등)에 발행하기 위해 재구성한 글 문서를 관리하는 최상위 폴더. `blog/<주제 폴더명>/`(예: `blog/spain_euro2024/`) 하위에 `BLOG_POST.md`(발행용 원고) + `BLOG_POST.html`(붙여넣기용 변환본)을 둡니다. 분석 산출물(이미지)은 여전히 해당 주제 폴더의 `processed/`가 원본이며, `blog/` 문서는 그 이미지를 상대 경로로 참조만 합니다 - 이미지를 옮기거나 복제하지 않습니다. 이 폴더는 로컬 전용이라 `.gitignore`에 올라 있어 커밋되지 않습니다.
+- `_workspace/` - `humanize-korean` 같은 스킬이 중간 산출물을 쌓는 스크래치 폴더. `.gitignore` 대상이며 커밋하지 않습니다.
 
-- `.claude/agents/` - 분석 워크플로우의 격리 가능한 단계를 위임하는 서브에이전트 정의(`data-review-run`, `analysis-verifier`, `blog-draft`, `blog-html`). Claude Code 전용이며, 위임 기준은 `.claude/rules/analysis-workflow.md`의 "서브에이전트 분담" 절에 있습니다. 문서 정합성 결정론적 검사는 `scripts/check_docs.py`.
+- `.claude/agents/` - 분석 워크플로우의 격리 가능한 단계를 위임하는 서브에이전트 정의(`data-review-run`, `analysis-verifier`, `blog-draft`, `blog-html`). 서브에이전트 위임은 Claude Code 전용 기능이고, Gemini / Antigravity CLI는 같은 작업을 세션에서 직접 수행하되 이 정의를 작업 범위·산출물 규격 참고용으로 씁니다. 위임 기준은 `.claude/rules/analysis-workflow.md`의 "서브에이전트 분담" 절에 있습니다. 문서 정합성 결정론적 검사는 `scripts/check_docs.py`(CLI 무관).
 
 `notebooks/`·`scripts/`의 샌드박스 사용법은 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md), `data_loader`/`visualizer` 수정 시 필요한 StatsBomb 컬럼 규칙(좌표 언패킹, outcome 의미, 선수 이름/교체 처리)은 [`.claude/rules/statsbomb-data-notes.md`](./.claude/rules/statsbomb-data-notes.md)를 참고하세요.
 
