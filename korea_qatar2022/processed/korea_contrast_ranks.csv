@@ -1,0 +1,5 @@
+﻿treatment,rank_penetration_5m,rank_offside_position
+원시,3,31
+vis_launch>=0.85,1,32
+상대 관측>=8,10,25
+회귀 보정,18,8
