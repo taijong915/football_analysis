@@ -133,7 +133,12 @@
 - [x] `RESULTS.md` 종합 (2026-09-09)
 - [x] `analysis-verifier` 검증 스윕 - 지적 6건(대부분 정보성) 반영 (2026-09-09)
 - [x] `ideas/backlog.md` 상태 `완료`로 갱신 (2026-09-09)
-- [ ] (선택) 프리즈프레임 대비 스냅샷 - 블로그 발행 시
+- [x] 커밋 - `40f7031` (main 직접, 23파일. 푸시 안 함) (2026-09-09)
+
+### 후속 선택 작업 (필수 아님, 주제는 종료 상태)
+
+- [ ] **프리즈프레임 대비 스냅샷** - "예상 산출물" 절 참고. 밀도 상위 팀 vs 한국 / 한국 조별리그 vs 브라질전. 선정 규칙은 "침투 선택지 개수 중앙값에 가장 가까운 상황", 그림 설명에 선정 방식 + 가시율 병기. `plot_freeze_frame()`은 `sb.frames` 한 이벤트 행 그룹이 필요하므로 `scripts/review_penetration_360_data.py`의 id 링크 로직을 참고해 frames+events를 재로드하는 스크립트가 있어야 한다. 산출물은 `processed/`.
+- [ ] **블로그 발행** - `.claude/rules/analysis-workflow.md` "블로그 발행 전 검토" 순서 (blog-draft → 사실 대조 → 제목·프레이밍 → `/humanize-korean` → blog-html → 태그 → 티스토리). 원고는 `blog/korea_qatar2022/`. 훅 후보: 한국 원시 극단이 화면 구성 산물이라는 결론.
 
 ## 한계 / 유의사항
 
