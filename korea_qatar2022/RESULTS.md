@@ -96,9 +96,15 @@
 | 3 양 x 밀도 | `02_volume_density.py` | `processed/volume_density.csv`, `fig_volume_density.png` |
 | 4 한국 대조 | `03_korea_contrast.py` | `processed/korea_contrast.csv`, `korea_contrast_ranks.csv`, `fig_korea_contrast.png`, `fig_korea_observation.png` |
 | 5 브라질전 | `04_brazil_comparison.py` | `processed/brazil_comparison.csv`, `fig_brazil_comparison.png` |
+| 대비 스냅샷 | `05_snapshot_contrast.py` | `processed/fig_snapshot_argentina.png`, `fig_snapshot_korea_group.png`, `fig_snapshot_korea_brazil.png`, `snapshot_notes.md` |
 
 데이터 검토 스크립트는 `scripts/review_penetration_360_data.py`, 프리즈프레임 시각화는 `src/visualizer.py`의 `plot_freeze_frame()`(프로토타입 `scripts/test_freeze_frame.py`).
 
-## 미착수 (선택)
+## 대비 스냅샷 (2026-09-10 추가)
 
-- PLAN "예상 산출물"의 프리즈프레임 대비 스냅샷(밀도 상위 팀의 전형적 장면 vs 한국의 전형적 장면, 한국 조별리그 vs 브라질전). 선정 규칙은 "해당 팀 침투 선택지 개수의 중앙값에 가장 가까운 상황". 지표가 실제로 무엇을 세는지 눈으로 보여주는 용도로, 블로그 발행 시 추가하면 좋다.
+`05_snapshot_contrast.py`. 침투 선택지 지표가 실제로 무엇을 세는지, 그리고 관측 조건이 그 값을 어떻게 미는지 눈으로 보여주는 프리즈프레임 세 장.
+
+- **선정 규칙**: 대상 표본(팀/경기의 오픈플레이 전진 상황)에서 `n_launch5`가 그 표본의 **평균**에 가장 가까운 상황. PLAN 원안은 중앙값이었으나 주요 여섯 팀의 중앙값이 모두 1로 겹쳐(분포가 0/1/2에 쏠림) 팀 차이를 담지 못해 평균으로 바꿨다(`DECISIONS.md` 2026-09-10).
+- **패널 1** (지표가 세는 것): 아르헨티나 조별리그 전형(vs 폴란드) vs 한국 조별리그 전형(vs 우루과이). 둘 다 청록 링 1개지만, 아르헨티나는 표본의 33%가 1명·29%가 2명·13%가 3명인 반면 한국은 36%가 0명이다.
+- **패널 2** (같은 한국, 관측 조건만 다름): 한국 조별리그 전형 vs 브라질전 전형(vs 브라질). 조별리그 장면은 카메라에 상대가 5명만 잡혀 추정 오프사이드 라인이 x=67.8로 얕고(온사이드 아군 2명이 "오프사이드 위치"로 오분류), 브라질전 장면은 상대가 9명 잡혀 라인이 x=79.9로 깊다. 경기력이 아니라 화면 구성이 지표를 흔든다는 것을 한 쌍으로 보여준다.
+- 장면별 수치·표본 분포·읽는 법은 `processed/snapshot_notes.md`.
