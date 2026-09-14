@@ -54,6 +54,7 @@ BRAZIL_MATCH = 3869253
 LAUNCH_DEPTH = 5.0  # 기본 지표 (PLAN "조작적 정의")
 OPP_KR = {'Portugal': '포르투갈', 'Uruguay': '우루과이', 'Ghana': '가나', 'Brazil': '브라질',
           'Poland': '폴란드', 'Saudi Arabia': '사우디아라비아', 'Mexico': '멕시코'}
+TEAM_KR = {'South Korea': '대한민국', 'Argentina': '아르헨티나'}
 
 
 def select_typical(df: pd.DataFrame) -> tuple[pd.Series, float, dict]:
@@ -95,8 +96,9 @@ def link_event(row: pd.Series) -> tuple[pd.Series, pd.DataFrame]:
     return event, frame
 
 
-def render(row: pd.Series, target: float, dist: dict, name: str, headline: str) -> dict:
+def render(row: pd.Series, target: float, dist: dict, name: str) -> dict:
     event, frame = link_event(row)
+    team_kr = TEAM_KR.get(row['team'], row['team'])
     opp_kr = OPP_KR.get(row['opponent'], row['opponent'])
 
     # 프리즈프레임이 프레임에서 직접 다시 계산한 def_line이 저장값과 맞는지 검산
@@ -108,10 +110,10 @@ def render(row: pd.Series, target: float, dist: dict, name: str, headline: str) 
     recomputed = float(xy[opp_field, 0].max())
     assert abs(recomputed - row['def_line']) < 0.05, (name, recomputed, row['def_line'])
 
-    subtitle = (f"{row['team']} vs {opp_kr} · {int(row['minute'])}'{int(row['second']):02d}"
-                f" · 화면에 잡힌 상대 {int(row['n_opp_visible'])}명 · 출발 구역 가시율 {row['vis_launch']:.2f}")
+    title = f"{team_kr} vs {opp_kr} - {int(row['minute'])}:{int(row['second']):02d}"
     fig, _ = plot_freeze_frame(frame, ball_location=event['location'],
-                               launch_depth=LAUNCH_DEPTH, title=headline, subtitle=subtitle)
+                               launch_depth=LAUNCH_DEPTH, title=title,
+                               team_name=team_kr, opponent_name=opp_kr)
     path = OUT / f'fig_snapshot_{name}.png'
     fig.savefig(path, dpi=140, facecolor=fig.get_facecolor(), bbox_inches='tight')
     matplotlib.pyplot.close(fig)
@@ -137,18 +139,18 @@ def main() -> None:
     kor_b = s[(s['team'] == 'South Korea') & (s['match_id'] == BRAZIL_MATCH) & (~s['setpiece'])]
 
     jobs = [
-        (arg, 'argentina', '아르헨티나의 전형적 전진 장면 (조별리그)'),
-        (kor_g, 'korea_group', '한국의 전형적 전진 장면 (조별리그)'),
-        (kor_b, 'korea_brazil', '한국의 전형적 전진 장면 (16강 브라질전)'),
+        (arg, 'argentina'),
+        (kor_g, 'korea_group'),
+        (kor_b, 'korea_brazil'),
     ]
 
     print("=" * 78)
     print("프리즈프레임 대비 스냅샷")
     print("=" * 78)
     results = []
-    for df, name, headline in jobs:
+    for df, name in jobs:
         row, target, dist = select_typical(df)
-        info = render(row, target, dist, name, headline)
+        info = render(row, target, dist, name)
         results.append(info)
         print(f"\n[{name}] {info['team']} vs {info['opponent']} {info['minute']}")
         print(f"  표본 {len(df)}건, 평균 n_launch5 = {target:.2f}, 분포: {info['dist']}")
@@ -217,6 +219,7 @@ def _write_notes(results: list[dict], n_arg: int, n_kor_g: int, n_kor_b: int) ->
         "",
         "- 청록 링 = 침투 선택지(패스 시점에 온사이드이면서 라인 앞 5m 안, 공보다 앞).",
         "  주황 링 = 라인을 이미 넘은 아군(규칙상 오프사이드 위치, 대조군).",
+        "  보라 링 = 공 소유자(패스하는 선수, 자기 팀 색 마커 위에 표시).",
         "- 빨간 세로 점선 = 추정 오프사이드 라인(화면에 잡힌 상대 필드플레이어 x의 최댓값).",
         "- 바깥 어두운 구역 = `visible_area` 밖. 카메라에 안 잡혀 선수가 기록되지 않은 곳이다.",
         "- **패널 2가 이 주제의 요점**: 같은 한국인데 브라질전은 카메라가 상대를 9명 담아",

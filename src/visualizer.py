@@ -744,6 +744,8 @@ def plot_freeze_frame(frame_df: pd.DataFrame,
                       launch_depth: float = 5.0,
                       title: str = '',
                       subtitle: str = '',
+                      team_name: str = '아군',
+                      opponent_name: str = '상대',
                       pitch_color: str = '#1e1e1e',
                       line_color: str = '#c7d5cc',
                       figsize: Tuple[float, float] = (13, 8.5)) -> Tuple[plt.Figure, plt.Axes]:
@@ -753,10 +755,12 @@ def plot_freeze_frame(frame_df: pd.DataFrame,
     전제합니다. 추정 오프사이드 라인(상대 필드플레이어 x의 최댓값)을 세로선으로
     긋고, 그 **앞** `launch_depth` m 구간("출발 구역")을 띠로 칠합니다.
 
-    강조는 두 가지입니다. **침투 선택지**(청록 링) = 패스 시점에 온사이드이면서
+    강조는 세 가지입니다. **침투 선택지**(청록 링) = 패스 시점에 온사이드이면서
     출발 구역 안에 있고 공보다 앞에 선 아군, **오프사이드 위치**(주황 링) =
-    라인보다 앞에 있는 아군. 후자는 규칙상 침투 선택지가 아니므로 대조군입니다
-    (`.claude/rules/statsbomb-data-notes.md`의 360 절 참고).
+    라인보다 앞에 있는 아군(후자는 규칙상 침투 선택지가 아니므로 대조군입니다 -
+    `.claude/rules/statsbomb-data-notes.md`의 360 절 참고), **공 소유자**(보라 링) =
+    패스를 하는 선수. 공 소유자는 자기 팀 색의 일반 마커(원/사각형) 위에 보라
+    링을 둘러 표시하며, 별도의 마커 모양은 쓰지 않습니다.
 
     `visible_area` 밖은 어둡게 덮어 "안 보여서 기록되지 않은 구역"을 드러냅니다.
     360은 화면에 잡힌 선수만 기록하므로(기록된 선수의 98% 이상이 이 다각형 안),
@@ -770,6 +774,8 @@ def plot_freeze_frame(frame_df: pd.DataFrame,
         launch_depth (float): 출발 구역 깊이(m). 기본 5.
         title (str): 제목
         subtitle (str): 부제(경기·시각·가시율 등)
+        team_name (str): 범례에 쓸 우리 팀 이름(예: '대한민국'). 기본값은 '아군'.
+        opponent_name (str): 범례에 쓸 상대 팀 이름(예: '우루과이'). 기본값은 '상대'.
         pitch_color (str): 잔디/배경 색상
         line_color (str): 라인 색상
         figsize (tuple): Figure 크기
@@ -849,16 +855,19 @@ def plot_freeze_frame(frame_df: pd.DataFrame,
         if selection.any():
             ax.scatter(xy[selection, 0], xy[selection, 1], zorder=6, **kwargs)
 
-    _draw(is_mate & (~is_keeper) & (~is_actor) & valid, s=210, c='#4ea8de',
-          edgecolors='white', linewidths=0.9, label='아군')
+    _draw(is_mate & (~is_keeper) & valid, s=210, c='#4ea8de',
+          edgecolors='white', linewidths=0.9, label=team_name)
     _draw((~is_mate) & (~is_keeper) & valid, s=210, c='#e5e5e5',
-          edgecolors='#333333', linewidths=0.9, label='상대')
+          edgecolors='#333333', linewidths=0.9, label=opponent_name)
     _draw(is_mate & is_keeper & valid, s=230, c='#4ea8de', marker='s',
-          edgecolors='white', linewidths=0.9, label='아군 GK')
+          edgecolors='white', linewidths=0.9, label=f'{team_name} GK')
     _draw((~is_mate) & is_keeper & valid, s=230, c='#e5e5e5', marker='s',
-          edgecolors='#333333', linewidths=0.9, label='상대 GK')
-    _draw(is_actor & valid, s=330, c='#ffd166', marker='*',
-          edgecolors='#333333', linewidths=0.8, label='공 소유자')
+          edgecolors='#333333', linewidths=0.9, label=f'{opponent_name} GK')
+
+    actor_sel = is_actor & valid
+    if actor_sel.any():
+        ax.scatter(xy[actor_sel, 0], xy[actor_sel, 1], s=520, facecolors='none',
+                   edgecolors='#b967ff', linewidths=2.6, zorder=6, label='공 소유자')
 
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.02), ncol=5, frameon=False,
               labelcolor=line_color, fontsize=9.5)
