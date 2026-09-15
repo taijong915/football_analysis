@@ -61,7 +61,7 @@ StatsBomb 오픈 데이터(이벤트 데이터 + 일부 대회는 360 프리즈�
 ## 아키텍처
 
 - `src/data_loader.py` - `statsbombpy` 래퍼(`get_available_competitions`, `get_competition_matches`, `get_match_events`, `get_match_lineups`) + pandas 필터 헬퍼(`filter_player_events`, `filter_team_events`). 인증·로컬 데이터 파일 없이 StatsBomb 무료 오픈 데이터 API만 사용합니다.
-- `src/visualizer.py` - `mplsoccer` 기반 플로팅 함수들. 기본 피치·차트(`create_standard_pitch`, `plot_shot_map`, `plot_pass_map`, `plot_pizza_chart`)와 주제 분석에서 검증 후 승격된 빌드업 시각화(`plot_pass_network`, `plot_pass_network_by_position`, `plot_zone_progression`, `plot_possession_chain_progression`)가 함께 있습니다. 디스크에 저장하지 않고 `(fig, ax)`를 반환하므로 저장은 호출부에서 `fig.savefig(...)`로 처리합니다.
+- `src/visualizer.py` - `mplsoccer` 기반 플로팅 함수들. 기본 피치·차트(`create_standard_pitch`, `plot_shot_map`, `plot_pass_map`, `plot_pizza_chart`)와 주제 분석에서 검증 후 승격된 빌드업 시각화(`plot_pass_network`, `plot_pass_network_by_position`, `plot_zone_progression`, `plot_possession_chain_progression`), 360 프리즈프레임 한 장면을 그리는 `plot_freeze_frame`(레인 경계와 채널/중앙 구분은 `lane_split=True`)이 함께 있습니다. 디스크에 저장하지 않고 `(fig, ax)`를 반환하므로 저장은 호출부에서 `fig.savefig(...)`로 처리합니다.
 - `scripts/` - `example_analysis.py`(최초 셋업 예제 파이프라인), `check_docs.py`(문서 정합성 결정론적 검사), 2단계 데이터 검토의 산출물인 `review_<주제>_data.py`, 새 함수를 `src/`로 승격하기 전에 검증하는 `test_*.py` 프로토타입이 함께 쌓이는 폴더입니다.
 - `notebooks/` - 스타터 노트북(`01`~`03`) + 새 함수를 `src/`로 승격하기 전 프로토타입하는 샌드박스. 주제별 분석은 여기가 아니라 전용 폴더에 둡니다.
 - `data/processed/` - 스타터 노트북/`example_analysis.py`·샌드박스 테스트의 산출물이 쌓이는 공용 폴더. 주제별 분석의 정식 산출물은 해당 주제 폴더의 `processed/`에 저장합니다. `data/raw/`는 README에 언급된 원본 데이터용 위치이나 아직 존재하지 않습니다.

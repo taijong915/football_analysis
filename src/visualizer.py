@@ -742,6 +742,7 @@ def _signed_area(polygon: np.ndarray) -> float:
 def plot_freeze_frame(frame_df: pd.DataFrame,
                       ball_location=None,
                       launch_depth: float = 5.0,
+                      lane_split: bool = False,
                       title: str = '',
                       subtitle: str = '',
                       team_name: str = '아군',
@@ -772,6 +773,11 @@ def plot_freeze_frame(frame_df: pd.DataFrame,
             `visible_area` 컬럼이 필요합니다.
         ball_location: 공 위치 `[x, y]`. None이면 `actor` 선수 위치를 씁니다.
         launch_depth (float): 출발 구역 깊이(m). 기본 5.
+        lane_split (bool): True면 레인 경계(y=18/30/50/62)를 깔고 침투 선택지를
+            **채널**(사이드 y<18·y>62 + 하프스페이스 18~30·50~62, 실선 청록 링)과
+            **중앙**(30~50, 점선 청록 링)으로 나눠 표시합니다. 경계는 피치 라인
+            기준입니다(18/62 = 페널티박스 폭, 30/50 = 골에어리어 폭). 기본 False면
+            레인 구분 없이 하나로 셉니다.
         title (str): 제목
         subtitle (str): 부제(경기·시각·가시율 등)
         team_name (str): 범례에 쓸 우리 팀 이름(예: '대한민국'). 기본값은 '아군'.
@@ -826,7 +832,19 @@ def plot_freeze_frame(frame_df: pd.DataFrame,
     elif (is_actor & valid).any():
         ball_x = xy[is_actor & valid][0][0]
 
-    n_launch = n_offside = 0
+    # 레인 경계는 상대 배치가 아니라 피치 라인으로 고정한다. 360으로는 백4와 백5를
+    # 구분할 수 없어(선발 백라인과 보이는 수비 수의 상관 -0.065), 상대 배치를 따라
+    # 경계를 움직이면 관측 편향이 지표 정의 안으로 들어온다.
+    if lane_split:
+        for y_line in (18.0, 30.0, 50.0, 62.0):
+            ax.axhline(y_line, color=line_color, linestyle=(0, (2, 4)),
+                       linewidth=0.9, alpha=0.35, zorder=1.4)
+        for y_pos, label in ((9, '사이드'), (24, '하프'), (40, '중앙'),
+                             (56, '하프'), (71, '사이드')):
+            ax.text(1.5, y_pos, label, color=line_color, fontsize=8, alpha=0.5,
+                    ha='left', va='center', zorder=1.4)
+
+    n_launch = n_offside = n_center = 0
     if not np.isnan(def_line):
         ax.axvline(def_line, color='#ff6b6b', linestyle='--', linewidth=1.6,
                    alpha=0.9, zorder=3)
@@ -842,11 +860,24 @@ def plot_freeze_frame(frame_df: pd.DataFrame,
         launch_sel = (mate_field & (xy[:, 0] <= def_line)
                       & (xy[:, 0] >= def_line - launch_depth) & ahead_of_ball)
         offside_sel = mate_field & (xy[:, 0] > def_line)
-        n_launch, n_offside = int(launch_sel.sum()), int(offside_sel.sum())
+        n_offside = int(offside_sel.sum())
+
+        center_sel = np.zeros(len(xy), bool)
+        if lane_split:
+            in_center = (xy[:, 1] >= 30) & (xy[:, 1] <= 50)
+            center_sel = launch_sel & in_center
+            launch_sel = launch_sel & (~in_center)
+            n_center = int(center_sel.sum())
+        n_launch = int(launch_sel.sum())
 
         if launch_sel.any():
             ax.scatter(xy[launch_sel, 0], xy[launch_sel, 1], s=520, facecolors='none',
-                       edgecolors='#2ec4b6', linewidths=2.6, zorder=5)
+                       edgecolors='#2ec4b6', linewidths=2.6, zorder=5,
+                       label='채널 침투 선택지' if lane_split else None)
+        if center_sel.any():
+            ax.scatter(xy[center_sel, 0], xy[center_sel, 1], s=520, facecolors='none',
+                       edgecolors='#2ec4b6', linewidths=2.2, linestyle=(0, (2, 2)),
+                       zorder=5, label='중앙 (대조군)')
         if offside_sel.any():
             ax.scatter(xy[offside_sel, 0], xy[offside_sel, 1], s=520, facecolors='none',
                        edgecolors='#ff9f1c', linewidths=2.6, zorder=5)
@@ -869,12 +900,17 @@ def plot_freeze_frame(frame_df: pd.DataFrame,
         ax.scatter(xy[actor_sel, 0], xy[actor_sel, 1], s=520, facecolors='none',
                    edgecolors='#b967ff', linewidths=2.6, zorder=6, label='공 소유자')
 
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.02), ncol=5, frameon=False,
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.02),
+              ncol=7 if lane_split else 5, frameon=False,
               labelcolor=line_color, fontsize=9.5)
 
     head = title or '360 프리즈프레임'
-    counts = (f'침투 선택지 {n_launch}명 (라인 앞 {launch_depth:.0f}m)'
-              f' · 오프사이드 위치 {n_offside}명')
+    if lane_split:
+        counts = (f'채널 침투 선택지 {n_launch}명 (라인 앞 {launch_depth:.0f}m)'
+                  f' · 중앙 {n_center}명 · 오프사이드 위치 {n_offside}명')
+    else:
+        counts = (f'침투 선택지 {n_launch}명 (라인 앞 {launch_depth:.0f}m)'
+                  f' · 오프사이드 위치 {n_offside}명')
     ax.set_title(f'{head}\n{subtitle}\n{counts}' if subtitle else f'{head}\n{counts}',
                  color=line_color, fontsize=13, pad=18)
     fig.text(0.5, -0.02,

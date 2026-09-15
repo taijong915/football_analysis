@@ -1,5 +1,6 @@
-﻿treatment,rank_penetration_5m,rank_offside_position
-원시,3,31
-vis_launch>=0.85,1,32
-상대 관측>=8,10,25
-회귀 보정,18,8
+﻿treatment,rank_channel_5m,rank_center_5m,rank_offside_position
+원시,8,10,29
+vis_launch>=0.85,3,9,28
+사이드 가시율>=0.8,2,7,28
+상대 관측>=8,8,30,12
+회귀 보정,15,25,14

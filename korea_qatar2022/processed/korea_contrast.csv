@@ -1,4 +1,4 @@
-﻿match_id,opponent,n,opp_visible,def_line,raw5,raw_beyond,adj5,adj_beyond,opponent_kr,team
-3857262,Portugal,142,6.0563,70.2175,0.8873,0.4507,-0.013,-0.0276,포르투갈,South Korea
-3857287,Uruguay,182,5.7308,74.7007,0.8352,0.3791,-0.0534,-0.0996,우루과이,South Korea
-3857299,Ghana,244,5.0902,73.8887,0.8934,0.541,0.0436,-0.0127,가나,South Korea
+﻿match_id,opponent,n,opp_visible,vis_wide,def_line,raw5,raw_center,raw_beyond,adj5,adj_center,adj_beyond,opponent_kr,team
+3857262,Portugal,196,6.5408,0.6621,79.5053,0.699,0.2908,0.4133,0.0127,-0.0796,0.0206,포르투갈,South Korea
+3857287,Uruguay,286,6.4196,0.6001,85.0958,0.6399,0.4615,0.3217,-0.0517,0.0254,-0.0748,우루과이,South Korea
+3857299,Ghana,379,5.8021,0.596,84.8084,0.6517,0.5409,0.4063,-0.0039,0.1427,-0.0203,가나,South Korea

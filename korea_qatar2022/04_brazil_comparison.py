@@ -29,7 +29,8 @@ CACHE = Path('data/raw/wc2022_360')
 OUT = Path('korea_qatar2022/processed')
 OUT.mkdir(parents=True, exist_ok=True)
 
-COND_COLS = ['n_opp_visible', 'vis_launch', 'max_vis_x', 'band15']
+COND_COLS = ['n_opp_visible', 'max_vis_x', 'band15',
+             'vis_launch_wide', 'vis_launch_half', 'vis_launch_center']
 BRAZIL_MATCH = 3869253
 OPP_KR = {'Portugal': '포르투갈', 'Uruguay': '우루과이', 'Ghana': '가나', 'Brazil': '브라질'}
 
@@ -41,42 +42,50 @@ def ols_beta(X: np.ndarray, y: np.ndarray) -> np.ndarray:
 
 
 def main() -> None:
-    s = pd.read_pickle(CACHE / 'situations.pkl')
+    s = pd.read_pickle(CACHE / 'situations_lanes.pkl')
 
     # 회귀 계수는 조별리그 32팀 오픈플레이로 적합 (질문 1~2와 동일)
-    g = s[(s['stage'] == 'Group Stage') & (~s['setpiece'])].copy()
+    g = s[(s['stage'] == 'Group Stage') & (~s['setpiece']) & (s['in_scope'])].copy()
     g['max_vis_x'] = g['def_line'] + g['vis_depth']
+    g = g.dropna(subset=COND_COLS)
     Xg = g[COND_COLS].to_numpy(float)
-    betas = {c: ols_beta(Xg, g[c].to_numpy(float))
-             for c in ['n_launch5', 'n_launch', 'n_beyond']}
+    METRICS = ['n_channel5', 'n_channel10', 'n_center5', 'n_beyond']
+    betas = {c: ols_beta(Xg, g[c].to_numpy(float)) for c in METRICS}
 
     avg32 = {
         'n_opp_visible': g['n_opp_visible'].mean(),
         'band15': g['band15'].mean(),
         'vis_launch': g['vis_launch'].mean(),
+        'vis_launch_wide': g['vis_launch_wide'].mean(),
         'def_line': g['def_line'].mean(),
-        'n_launch5': g['n_launch5'].mean(),
-        'n_launch': g['n_launch'].mean(),
+        'n_channel5': g['n_channel5'].mean(),
+        'n_channel10': g['n_channel10'].mean(),
+        'n_center5': g['n_center5'].mean(),
         'n_beyond': g['n_beyond'].mean(),
     }
 
     # 한국 4경기 (오픈플레이)
-    k = s[(s['team'] == 'South Korea') & (~s['setpiece'])].copy()
+    k = s[(s['team'] == 'South Korea') & (~s['setpiece']) & (s['in_scope'])].copy()
     k['max_vis_x'] = k['def_line'] + k['vis_depth']
+    k = k.dropna(subset=COND_COLS)
     A = np.column_stack([np.ones(len(k)), k[COND_COLS].to_numpy(float)])
-    for src, dst in [('n_launch5', 'adj5'), ('n_launch', 'adj10'), ('n_beyond', 'adjb')]:
+    for src, dst in [('n_channel5', 'adj5'), ('n_channel10', 'adj10'),
+                     ('n_center5', 'adjc'), ('n_beyond', 'adjb')]:
         k[dst] = k[src].to_numpy(float) - A @ betas[src]
 
     k['is_brazil'] = k['match_id'] == BRAZIL_MATCH
 
     agg = k.groupby(['match_id', 'stage', 'opponent']).agg(
-        n=('n_launch5', 'size'),
+        n=('n_channel5', 'size'),
         n_opp_visible=('n_opp_visible', 'mean'),
         band15=('band15', 'mean'),
         vis_launch=('vis_launch', 'mean'),
+        vis_wide=('vis_launch_wide', 'mean'),
         def_line=('def_line', 'mean'),
-        raw5=('n_launch5', 'mean'), raw10=('n_launch', 'mean'), rawb=('n_beyond', 'mean'),
-        adj5=('adj5', 'mean'), adj10=('adj10', 'mean'), adjb=('adjb', 'mean'),
+        raw5=('n_channel5', 'mean'), raw10=('n_channel10', 'mean'),
+        rawc=('n_center5', 'mean'), rawb=('n_beyond', 'mean'),
+        adj5=('adj5', 'mean'), adj10=('adj10', 'mean'),
+        adjc=('adjc', 'mean'), adjb=('adjb', 'mean'),
         pre_goal=('pre_first_goal', 'sum'),
     ).reset_index()
     agg['opp_kr'] = agg['opponent'].map(OPP_KR).fillna(agg['opponent'])
@@ -90,24 +99,37 @@ def main() -> None:
     print("질문 5: 한국의 16강 브라질전은 조별리그 세 경기와 달랐는가")
     print("=" * 74)
     print("\n한국 4경기 (오픈플레이 전진 상황):")
-    cols = ['opp_kr', 'n', 'n_opp_visible', 'band15', 'vis_launch', 'def_line',
-            'raw5', 'raw10', 'rawb', 'adj5', 'adj10', 'adjb', 'pre_goal']
+    cols = ['opp_kr', 'n', 'n_opp_visible', 'vis_wide', 'def_line',
+            'raw5', 'rawc', 'rawb', 'adj5', 'adjc', 'adjb', 'pre_goal']
     print(agg[cols].round(3).to_string(index=False))
     print(f"\n  조별리그 32팀 평균: n_opp_visible {avg32['n_opp_visible']:.2f}  "
           f"band15 {avg32['band15']:.3f}  vis_launch {avg32['vis_launch']:.3f}  "
           f"def_line {avg32['def_line']:.1f}")
-    print(f"                     raw5 {avg32['n_launch5']:.3f}  raw10 {avg32['n_launch']:.3f}  "
-          f"rawb {avg32['n_beyond']:.3f}")
+    print(f"                     사이드 가시율 {avg32['vis_launch_wide']:.3f}  "
+          f"채널5 {avg32['n_channel5']:.3f}  중앙5 {avg32['n_center5']:.3f}  "
+          f"오프사이드 {avg32['n_beyond']:.3f}")
 
     print("\n조별 3경기 합산  vs  브라질전:")
     print(f"  관측 상대     : {kg['n_opp_visible'].mean():.2f}명  ->  {kb['n_opp_visible'].mean():.2f}명  "
           f"(브라질전이 한국 유일하게 32팀 평균 초과)")
-    print(f"  band15(라인뒤): {kg['band15'].mean():.3f}  ->  {kb['band15'].mean():.3f}")
-    print(f"  원시 침투선택지 5m : {kg['n_launch5'].mean():.3f}  ->  {kb['n_launch5'].mean():.3f}  (상승)")
-    print(f"  원시 침투선택지 10m: {kg['n_launch'].mean():.3f}  ->  {kb['n_launch'].mean():.3f}  (상승)")
-    print(f"  보정 침투선택지 5m : {kg['adj5'].mean():+.3f}  ->  {kb['adj5'].mean():+.3f}  (오히려 하락)")
-    print(f"  보정 침투선택지 10m: {kg['adj10'].mean():+.3f}  ->  {kb['adj10'].mean():+.3f}  (비슷)")
-    print(f"  보정 오프사이드위치: {kg['adjb'].mean():+.3f}  ->  {kb['adjb'].mean():+.3f}")
+    print(f"  사이드 가시율 : {kg['vis_launch_wide'].mean():.3f}  ->  {kb['vis_launch_wide'].mean():.3f}")
+
+    def direction(before: float, after: float, tol: float = 0.02) -> str:
+        """방향 라벨을 값에서 뽑는다 - 손으로 적으면 재실행 때 조용히 틀린다."""
+        diff = after - before
+        if abs(diff) < tol:
+            return '비슷'
+        return '상승' if diff > 0 else '하락'
+
+    for label, col, fmt in [('원시 채널 5m ', 'n_channel5', '.3f'),
+                            ('원시 채널 10m', 'n_channel10', '.3f'),
+                            ('원시 중앙 5m ', 'n_center5', '.3f'),
+                            ('보정 채널 5m ', 'adj5', '+.3f'),
+                            ('보정 채널 10m', 'adj10', '+.3f'),
+                            ('보정 중앙 5m ', 'adjc', '+.3f'),
+                            ('보정 오프사이드', 'adjb', '+.3f')]:
+        b, a = kg[col].mean(), kb[col].mean()
+        print(f"  {label}: {b:{fmt}}  ->  {a:{fmt}}  ({direction(b, a)})")
 
     brz_all = k[k['is_brazil']]
     # 브라질 득점: 7분(비니시우스) 13분(네이마르 PK) 29분(히샬리송) 36분(파케타)
@@ -118,25 +140,102 @@ def main() -> None:
           f"({100 * (brz_all['minute'] >= 13).mean():.0f}%), "
           f"네 골차 이후(36분~) {int((brz_all['minute'] >= 36).sum())}건 "
           f"({100 * (brz_all['minute'] >= 36).mean():.0f}%) - 표본 대부분이 큰 점수차 추격.")
-    per = brz_all.groupby('period')['n_launch5'].agg(['size', 'mean']).round(3)
+    per = brz_all.groupby('period')['n_channel5'].agg(['size', 'mean']).round(3)
     print(f"             전/후반 원시 5m: {per.loc[1, 'mean']} ({int(per.loc[1, 'size'])}건) / "
           f"{per.loc[2, 'mean']} ({int(per.loc[2, 'size'])}건) - 큰 차이 없음.")
 
+    raw_gap = kb['n_channel5'].mean() - kg['n_channel5'].mean()
+    adj_gap = kb['adj5'].mean() - kg['adj5'].mean()
     print("\n해석:")
-    print("  원시값은 브라질전에서 침투 선택지가 늘어난 것처럼 보이지만, 그 상승은")
-    print("  브라질전이 한국 네 경기 중 유일하게 카메라가 상대를 충분히 담은 경기라는")
-    print("  사실로 대부분 설명된다. 관측 조건을 보정하면 브라질전의 침투 선택지 밀도는")
-    print("  조별리그 수준이거나 오히려 약간 낮다. 게다가 표본 대부분이 큰 점수차 추격 상황이다.")
-    print("  => 브라질전이 전술적으로 달랐다는 근거는 없다. 단일 경기라 방증으로만 쓴다.")
+    print(f"  원시 채널 5m는 조별리그 대비 {raw_gap:+.3f} 움직였고, 관측 조건을 보정하면 {adj_gap:+.3f}다.")
+    print("  브라질전은 한국 네 경기 중 유일하게 카메라가 상대를 충분히 담은 경기라, 원시 차이의")
+    print("  상당 부분이 관측 조건으로 설명된다. 게다가 표본 대부분이 큰 점수차 추격 상황이다.")
+    if abs(adj_gap) < 0.05:
+        print("  => 보정 후 차이가 거의 없다. 브라질전이 전술적으로 달랐다는 근거는 없다.")
+    else:
+        print(f"  => 보정 후에도 {'높은' if adj_gap > 0 else '낮은'} 쪽으로 차이가 남는다. "
+              "다만 단일 경기라 방증으로만 쓴다.")
 
-    out = agg[['opp_kr', 'stage', 'n', 'n_opp_visible', 'band15', 'vis_launch',
-               'def_line', 'raw5', 'raw10', 'rawb', 'adj5', 'adj10', 'adjb', 'pre_goal']].copy()
+    out = agg[['opp_kr', 'stage', 'n', 'n_opp_visible', 'band15', 'vis_launch', 'vis_wide',
+               'def_line', 'raw5', 'raw10', 'rawc', 'rawb',
+               'adj5', 'adj10', 'adjc', 'adjb', 'pre_goal']].copy()
     out.round(4).to_csv(OUT / 'brazil_comparison.csv', index=False, encoding='utf-8-sig')
     print(f"\n저장: {OUT / 'brazil_comparison.csv'}")
+
+    _write_notes(agg, avg32, kg, kb, brz_all, direction)
+    print(f"저장: {OUT / 'brazil_comparison_notes.md'}")
 
     _ensure_korean_font()
     _fig(agg, avg32)
     print("그림 저장 완료")
+
+
+def _write_notes(agg, avg32, kg, kb, brz_all, direction) -> None:
+    """질문 5 관찰 메모를 계산값으로 생성한다(손으로 고치지 말 것)."""
+    lines = [
+        "# 브라질전 비교 관찰 메모 (질문 5)",
+        "",
+        "`04_brazil_comparison.py`가 실행 때마다 새로 쓰는 파일이다. 손으로 고치지 말 것.",
+        "",
+        "## 주의 - 이 비교의 지위",
+        "",
+        "16강 브라질전은 기준선(조별리그) 밖의 단일 사례다. 재현성 근거가 없고 무엇보다 "
+        "**관측 조건이 다르다**. 원시값 절대 비교는 하지 않고 보정값으로만 방향을 읽으며, "
+        "조별리그 결론의 방증으로만 쓴다.",
+        "",
+        "## 한국 4경기",
+        "",
+        "| 상대 | 상황 수 | 관측 상대 | 사이드 가시율 | 추정 라인 x | 채널 원시 | 중앙 원시 | 채널 보정 | 중앙 보정 |",
+        "| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for _, r in agg.iterrows():
+        lines.append(
+            f"| {r['opp_kr']} | {int(r['n'])} | {r['n_opp_visible']:.2f} | {r['vis_wide']:.3f} | "
+            f"{r['def_line']:.1f} | {r['raw5']:.3f} | {r['rawc']:.3f} | "
+            f"{r['adj5']:+.3f} | {r['adjc']:+.3f} |")
+    lines += [
+        f"| **32팀 평균** | - | {avg32['n_opp_visible']:.2f} | {avg32['vis_launch_wide']:.3f} | "
+        f"{avg32['def_line']:.1f} | {avg32['n_channel5']:.3f} | {avg32['n_center5']:.3f} | - | - |",
+        "",
+        "## 조별 3경기 합산 vs 브라질전",
+        "",
+        "| 항목 | 조별 3경기 | 브라질전 | 방향 |",
+        "| :--- | ---: | ---: | :--- |",
+        f"| 관측 상대 | {kg['n_opp_visible'].mean():.2f}명 | {kb['n_opp_visible'].mean():.2f}명 | "
+        "브라질전만 32팀 평균 초과 |",
+        f"| 사이드 가시율 | {kg['vis_launch_wide'].mean():.3f} | {kb['vis_launch_wide'].mean():.3f} | - |",
+    ]
+    for label, col, fmt in [('원시 채널 5m', 'n_channel5', '.3f'),
+                            ('원시 채널 10m', 'n_channel10', '.3f'),
+                            ('원시 중앙 5m', 'n_center5', '.3f'),
+                            ('보정 채널 5m', 'adj5', '+.3f'),
+                            ('보정 채널 10m', 'adj10', '+.3f'),
+                            ('보정 중앙 5m', 'adjc', '+.3f')]:
+        b, a = kg[col].mean(), kb[col].mean()
+        lines.append(f"| {label} | {b:{fmt}} | {a:{fmt}} | {direction(b, a)} |")
+
+    adj_gap = kb['adj5'].mean() - kg['adj5'].mean()
+    lines += [
+        "",
+        f"원시값은 브라질전에서 올라가지만 관측 조건을 보정하면 차이가 {adj_gap:+.3f}로 "
+        f"{'사라진다' if abs(adj_gap) < 0.05 else '오히려 반대 방향이 된다'}. "
+        "브라질전은 한국 네 경기 중 유일하게 카메라가 상대를 충분히 담은 경기다.",
+        "",
+        "## 경기 상태 (이 표본의 성격)",
+        "",
+        f"- 브라질전 전진 상황 {len(brz_all)}건 중 선제 실점 이전은 "
+        f"{int(brz_all['pre_first_goal'].sum())}건뿐"
+        f"({100 * brz_all['pre_first_goal'].mean():.0f}%).",
+        f"- 두 골차 이후(13분~) {100 * (brz_all['minute'] >= 13).mean():.0f}%, "
+        f"네 골차 이후(36분~) {100 * (brz_all['minute'] >= 36).mean():.0f}%. "
+        "표본 대부분이 큰 점수차 추격 상황이다.",
+        "",
+        "## 산출물",
+        "",
+        "- `brazil_comparison.csv` - 한국 4경기 지표 표 (가시율 포함)",
+        "- `fig_brazil_comparison.png` - 관측 조건 / 원시 / 보정 3패널",
+    ]
+    (OUT / 'brazil_comparison_notes.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 
 # ---------------------------------------------------------------------------
@@ -183,27 +282,27 @@ def _fig(agg: pd.DataFrame, avg32: dict) -> None:
 
     # (2) 원시 침투 선택지
     ax = axes[1]
-    ax.bar(x - w / 2, agg['raw5'], w, color=RAW_C, label='5m')
-    ax.bar(x + w / 2, agg['raw10'], w, color='#3a5fa0', label='10m')
-    ax.axhline(avg32['n_launch5'], color=RAW_C, lw=0.9, ls=':')
-    ax.axhline(avg32['n_launch'], color='#3a5fa0', lw=0.9, ls=':')
-    ax.text(2.6, avg32['n_launch'], f' 32팀 평균 10m {avg32["n_launch"]:.2f}', color='#8ba3c9',
+    ax.bar(x - w / 2, agg['raw5'], w, color=RAW_C, label='채널 5m')
+    ax.bar(x + w / 2, agg['rawc'], w, color='#3a5fa0', label='중앙 5m')
+    ax.axhline(avg32['n_channel5'], color=RAW_C, lw=0.9, ls=':')
+    ax.axhline(avg32['n_center5'], color='#3a5fa0', lw=0.9, ls=':')
+    ax.text(2.6, avg32['n_center5'], f' 32팀 평균 중앙 {avg32["n_center5"]:.2f}', color='#8ba3c9',
             fontsize=7, va='bottom')
     ax.set_xticks(x)
     ax.set_xticklabels(labels, color=FG, fontsize=8.5)
-    ax.set_ylabel('상황당 침투 선택지 (원시)', color=FG, fontsize=9)
+    ax.set_ylabel('상황당 인원 (원시)', color=FG, fontsize=9)
     ax.set_title('원시값 - 브라질전이 높아 보인다\n(관측이 좋았을 뿐)', color=FG, fontsize=10.5, pad=8)
     ax.legend(loc='upper left', frameon=False, labelcolor=FG, fontsize=8)
     _style(ax)
 
     # (3) 보정 침투 선택지
     ax = axes[2]
-    ax.bar(x - w / 2, agg['adj5'], w, color=ADJ_C, label='5m')
-    ax.bar(x + w / 2, agg['adj10'], w, color='#0a7d6f', label='10m')
+    ax.bar(x - w / 2, agg['adj5'], w, color=ADJ_C, label='채널 5m')
+    ax.bar(x + w / 2, agg['adjc'], w, color='#0a7d6f', label='중앙 5m')
     ax.axhline(0, color='#3a3f46', lw=1)
     ax.set_xticks(x)
     ax.set_xticklabels(labels, color=FG, fontsize=8.5)
-    ax.set_ylabel('침투 선택지 · 관측 조건 보정 잔차', color=FG, fontsize=9)
+    ax.set_ylabel('관측 조건 보정 잔차', color=FG, fontsize=9)
     ax.set_title('보정 후 - 브라질전은 조별리그 수준이거나\n오히려 약간 낮다', color=FG, fontsize=10.5, pad=8)
     ax.legend(loc='lower left', frameon=False, labelcolor=FG, fontsize=8)
     _style(ax)
@@ -211,7 +310,7 @@ def _fig(agg: pd.DataFrame, avg32: dict) -> None:
     fig.suptitle('한국 4경기 - 브라질전(16강)이 조별리그와 달랐는가',
                  color=FG, fontsize=13.5, fontweight='bold', y=0.98)
     fig.text(0.5, 0.9,
-             '원시 침투 선택지는 브라질전에서 올라가지만, 관측 조건을 보정하면 그 상승이 사라진다. '
+             '원시값은 브라질전에서 올라가지만, 관측 조건을 보정하면 그 상승이 사라진다. '
              '표본 대부분이 큰 점수차 추격 상황이라 단일 경기 방증으로만 쓴다.',
              ha='center', color='#9aa0a6', fontsize=9)
     fig.tight_layout(rect=[0, 0, 1, 0.84])
