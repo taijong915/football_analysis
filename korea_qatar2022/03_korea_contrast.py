@@ -20,6 +20,7 @@
 - korea_contrast_notes.md       - 관찰 메모(스크립트 생성)
 - fig_korea_contrast.png        - 채널 x 중앙 (원시 / 보정)
 - fig_korea_observation.png     - 관측 조건 메커니즘
+- blog_korea_contrast.png       - 블로그용: 채널 x 중앙 최종값 한 패널, 분석 용어 없음
 """
 import os
 import sys
@@ -191,6 +192,7 @@ def main() -> None:
     _ensure_korean_font()
     _fig_contrast(tm)
     _fig_observation(tm, per_match, treatments, avg32)
+    _fig_blog_contrast(tm)
     print("그림 2개 저장 완료")
 
 
@@ -266,6 +268,7 @@ def _write_notes(tm, per_match, treatments, avg32, corr_all, corr_kor) -> None:
         "- `korea_contrast_ranks.csv` - 처리 방식별 순위",
         "- `fig_korea_contrast.png` - 채널 x 중앙 산점도 (원시 / 보정)",
         "- `fig_korea_observation.png` - 관측 조건 메커니즘 3패널",
+        "- `blog_korea_contrast.png` - 블로그용 채널 x 중앙 (최종값만)",
     ]
     (OUT / 'korea_contrast_notes.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
@@ -414,6 +417,33 @@ def _style(ax):
     ax.tick_params(colors=FG, labelsize=8)
     ax.xaxis.label.set_color(FG)
     ax.yaxis.label.set_color(FG)
+
+
+def _fig_blog_contrast(tm: pd.DataFrame) -> None:
+    """블로그용: 채널 x 중앙 최종값(관측 조건 보정 후) 한 패널.
+
+    블로그 원고는 보정 전후 비교를 쓰지 않으므로(`blog-essay-architect` 스킬)
+    원시 패널을 빼고, 축 이름에서 분석 용어를 뺀다. 값은 32팀 평균 대비.
+    """
+    fig, ax = plt.subplots(figsize=(9.5, 7.6))
+    fig.set_facecolor(BG)
+    _panel(ax, tm, 'adj5', 'adjc',
+           '사이드·하프스페이스에 선 선수 (평균 대비, 오른쪽일수록 많음)',
+           '박스 중앙에 선 선수 (평균 대비, 위쪽일수록 많음)', '')
+    handles = [
+        plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=KOR, markersize=9, label='한국'),
+        plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=ADV_C, markersize=9, label='16강 진출'),
+        plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=OUT_C, markersize=9, label='조별 탈락'),
+    ]
+    fig.legend(handles=handles, loc='lower center', ncol=3, frameon=False,
+               labelcolor=FG, fontsize=9, bbox_to_anchor=(0.5, 0.01))
+    fig.suptitle('수비 라인 바로 앞, 어디에 서서 기다렸나 (32팀)',
+                 color=FG, fontsize=13, fontweight='bold', y=0.985)
+    fig.text(0.5, 0.94, '점선 = 32팀 중간값. 2022 카타르 월드컵 조별리그, 패스가 나가는 순간 한 번당 인원',
+             ha='center', color='#9aa0a6', fontsize=9.5)
+    fig.tight_layout(rect=[0, 0.05, 1, 0.925])
+    fig.savefig(OUT / 'blog_korea_contrast.png', dpi=140, facecolor=BG)
+    plt.close(fig)
 
 
 if __name__ == '__main__':

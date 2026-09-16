@@ -20,6 +20,7 @@
 산출물(`korea_qatar2022/processed/`):
 - volume_density.csv          - 팀별 양/밀도/라운드/잔차
 - fig_volume_density.png      - 2패널 산점도 (원본 / 양 통제 후)
+- blog_volume_density.png     - 블로그용: 양 x 밀도 한 패널, 분석 용어 없음
 """
 import os
 import sys
@@ -190,6 +191,7 @@ def main() -> None:
 
     _ensure_korean_font()
     _fig(tm)
+    _fig_blog(tm)
     print("그림 저장 완료")
 
 
@@ -253,6 +255,7 @@ def _write_notes(tm: pd.DataFrame, quad: dict, q_x: float, q_y: float) -> None:
         "",
         "- `volume_density.csv` - 팀별 양/밀도/중앙 밀도/라운드/잔차",
         "- `fig_volume_density.png` - 2패널 산점도 (원본 / 점유 볼륨 통제 후)",
+        "- `blog_volume_density.png` - 블로그용 양 x 밀도 한 패널",
     ]
     (OUT / 'volume_density_notes.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
@@ -317,9 +320,10 @@ def _fig(tm: pd.DataFrame) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(15, 7.4))
     fig.set_facecolor(BG)
 
+    r_vol = np.corrcoef(tm['volume'], tm['op_passes'])[0, 1]
     _scatter(axes[0], tm, 'density5', 'volume',
              '전진 상황 수 (조별리그 3경기 합산)  =  "양"',
-             '상황당 침투 선택지 · 관측 조건 보정  =  "밀도"',
+             '상황당 채널 침투 선택지 · 관측 조건 보정  =  "밀도"',
              'A. 양 x 밀도 - 밀어붙인 팀일수록 채널에 선 선수도 많다',
              draw_fit=True, hline=tm['density5'].median(), vline=tm['volume'].median(),
              quad_labels=True)
@@ -327,7 +331,7 @@ def _fig(tm: pd.DataFrame) -> None:
     r_raw = np.corrcoef(tm['density5'], tm['advanced'])[0, 1]
     r_vc = np.corrcoef(tm['density5_vc'], tm['advanced'])[0, 1]
     _scatter(axes[1], tm, 'density5_vc', 'volume',
-             '전진 상황 수 (점유 볼륨과 r=0.98)',
+             f'전진 상황 수 (점유 볼륨과 r={r_vol:.2f})',
              '밀도 잔차 (점유 볼륨을 통제한 뒤 남는 채널 침투 선택지)',
              f'B. 점유 볼륨을 걷어낸 뒤 - 진출과의 상관이 {r_raw:+.2f}에서 {r_vc:+.2f}로',
              draw_fit=False, hline=0.0)
@@ -348,6 +352,38 @@ def _fig(tm: pd.DataFrame) -> None:
              ha='center', color='#9aa0a6', fontsize=9.5)
     fig.tight_layout(rect=[0, 0.06, 1, 0.91])
     fig.savefig(OUT / 'fig_volume_density.png', dpi=140, facecolor=BG)
+    plt.close(fig)
+
+
+def _fig_blog(tm: pd.DataFrame) -> None:
+    """블로그용: 양 x 밀도 한 패널(점유 통제 패널 제외), 추세선·상관 수치 없이 사분면만.
+
+    블로그 원고는 분석 과정을 쓰지 않으므로(`blog-essay-architect` 스킬) 통제 전후
+    비교 패널을 빼고, 축 이름에서 "보정/잔차" 같은 분석 용어를 뺀다.
+    """
+    fig, ax = plt.subplots(figsize=(10, 7.6))
+    fig.set_facecolor(BG)
+    _scatter(ax, tm, 'density5', 'volume',
+             '전진한 횟수 (조별리그 3경기 합산), 오른쪽일수록 많이 밀어붙였다',
+             '한 번 전진할 때 채널에 선 선수 (평균 대비)',
+             '', draw_fit=False, hline=tm['density5'].median(), vline=tm['volume'].median(),
+             quad_labels=True)
+    # 사분면 라벨이 맨 아래 점(이란)과 겹치지 않게 아래 여백을 늘린다.
+    lo, hi = ax.get_ylim()
+    ax.set_ylim(lo - 0.08 * (hi - lo), hi)
+    handles = [plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=cc,
+                          markeredgecolor='#0c0e11', markersize=9,
+                          label=ROUND_NAME[i]) for i, cc in enumerate(ROUND_COLORS)]
+    handles.append(plt.Line2D([0], [0], marker='o', color='none', markerfacecolor='none',
+                              markeredgecolor=KOR, markeredgewidth=2, markersize=11, label='한국'))
+    fig.legend(handles=handles, loc='lower center', ncol=6, frameon=False,
+               labelcolor=FG, fontsize=9, bbox_to_anchor=(0.5, 0.005))
+    fig.suptitle('수치가 낮은 팀에도 두 종류가 있다 (32팀, 점 색 = 최종 성적)',
+                 color=FG, fontsize=13, fontweight='bold', y=0.985)
+    fig.text(0.5, 0.94, '점선 = 32팀 중간값. 왼쪽 아래는 밀어붙일 일이 적었던 팀, 오른쪽 아래는 밀어붙이고도 못 뚫은 팀',
+             ha='center', color='#9aa0a6', fontsize=9.5)
+    fig.tight_layout(rect=[0, 0.06, 1, 0.925])
+    fig.savefig(OUT / 'blog_volume_density.png', dpi=140, facecolor=BG)
     plt.close(fig)
 
 

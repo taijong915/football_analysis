@@ -46,3 +46,4 @@
 - `korea_contrast_ranks.csv` - 처리 방식별 순위
 - `fig_korea_contrast.png` - 채널 x 중앙 산점도 (원시 / 보정)
 - `fig_korea_observation.png` - 관측 조건 메커니즘 3패널
+- `blog_korea_contrast.png` - 블로그용 채널 x 중앙 (최종값만)

@@ -21,6 +21,8 @@
 - fig_team_comparison_5m.png   - 보정 전/후 팀 분포, 한국 강조
 - fig_rank_slope_5m.png        - 보정 전후 순위 변화(범프 차트)
 - fig_advancement.png          - 16강 진출 여부별 지표 분포 (채널 vs 중앙)
+- blog_team_comparison.png     - 블로그용: 최종값(보정 후)만 그린 팀 분포, 분석 용어 없음
+- blog_advancement.png         - 블로그용: 최종값만 그린 16강 진출별 분포 (채널 vs 중앙)
 """
 import os
 import sys
@@ -217,6 +219,8 @@ def main() -> None:
     _fig_distribution(tm)
     _fig_rank_slope(tm)
     _fig_advancement(tm)
+    _fig_blog_team(tm)
+    _fig_blog_advancement(tm)
     print("그림 3개 저장 완료")
 
 
@@ -303,6 +307,8 @@ def _write_notes(g: pd.DataFrame, tm: pd.DataFrame, d: dict) -> None:
         "- `fig_team_comparison_5m.png` - 보정 전/후 팀 분포, 한국 강조",
         "- `fig_rank_slope_5m.png` - 보정 전후 순위 변화 범프 차트",
         "- `fig_advancement.png` - 16강 진출 여부별 분포 (채널 vs 중앙 x 원시/보정)",
+        "- `blog_team_comparison.png` - 블로그용 팀 분포 (최종값만)",
+        "- `blog_advancement.png` - 블로그용 16강 진출별 분포 (최종값만)",
     ]
     (OUT / 'team_comparison_notes.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
@@ -450,6 +456,78 @@ def _fig_advancement(tm: pd.DataFrame) -> None:
              ha='center', color='#9aa0a6', fontsize=9)
     fig.tight_layout(rect=[0, 0, 1, 0.88])
     fig.savefig(OUT / 'fig_advancement.png', dpi=140, facecolor=BG)
+    plt.close(fig)
+
+
+# --- 블로그용 그림 -----------------------------------------------------------
+# 블로그 원고는 분석 과정(보정 전후 비교)을 쓰지 않으므로(`blog-essay-architect`
+# 스킬), 최종값(관측 조건 보정 후)만 한 패널로 그리고 "원시/보정/잔차" 같은
+# 분석 용어를 쓰지 않는다. 값은 32팀 평균 대비라 0이 평균이다.
+
+def _fig_blog_team(tm: pd.DataFrame) -> None:
+    """블로그용: 팀별 채널 침투 선택지(최종값) 한 패널, 한국 강조."""
+    d = tm.sort_values('adj5')
+    y = np.arange(len(d))
+    colors = [KOR if t == 'South Korea' else (ADV_C if adv else OUT_C)
+              for t, adv in zip(d.index, d['advanced'])]
+    fig, ax = plt.subplots(figsize=(8, 10))
+    fig.set_facecolor(BG)
+    ax.hlines(y, 0.0, d['adj5'], color=colors, lw=2, alpha=0.6)
+    ax.scatter(d['adj5'], y, c=colors, s=38, zorder=3)
+    ax.axvline(0.0, color='#3a3f46', lw=1, ls='--')
+    ax.set_yticks(y)
+    ax.set_yticklabels(d['team_kr'], fontsize=8.5)
+    for tick, t in zip(ax.get_yticklabels(), d.index):
+        if t == 'South Korea':
+            tick.set_color(KOR)
+            tick.set_fontweight('bold')
+    ax.set_ylim(-1, len(d))
+    ax.set_xlabel('32팀 평균과의 차이 (0 = 평균, 오른쪽일수록 많음)', color=FG, fontsize=9.5)
+    _style(ax)
+    handles = [
+        plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=KOR, markersize=8, label='한국'),
+        plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=ADV_C, markersize=8, label='16강 진출'),
+        plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=OUT_C, markersize=8, label='조별 탈락'),
+    ]
+    fig.legend(handles=handles, loc='lower center', ncol=3, frameon=False,
+               labelcolor=FG, fontsize=9, bbox_to_anchor=(0.5, 0.01))
+    fig.suptitle('사이드·하프스페이스로 파고들 준비가 된 선수 (32팀)',
+                 color=FG, fontsize=13, fontweight='bold', y=0.985)
+    fig.text(0.5, 0.945, '2022 카타르 월드컵 조별리그, 패스가 나가는 순간 한 번당 인원',
+             ha='center', color='#9aa0a6', fontsize=9.5)
+    fig.tight_layout(rect=[0, 0.04, 1, 0.935])
+    fig.savefig(OUT / 'blog_team_comparison.png', dpi=140, facecolor=BG)
+    plt.close(fig)
+
+
+def _fig_blog_advancement(tm: pd.DataFrame) -> None:
+    """블로그용: 16강 진출 여부별 분포(최종값), 채널 vs 중앙 두 패널."""
+    metrics = [('adj5', '사이드·하프스페이스'), ('adjc', '박스 중앙')]
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 5.8))
+    fig.set_facecolor(BG)
+    rng = np.random.default_rng(0)
+    for ax, (col, title) in zip(axes, metrics):
+        for gi, (adv, c) in enumerate([(False, OUT_C), (True, ADV_C)]):
+            vals = tm.loc[tm['advanced'] == adv, col]
+            x = gi + rng.uniform(-0.12, 0.12, len(vals))
+            ax.scatter(x, vals, c=c, s=34, alpha=0.8, zorder=3)
+            ax.hlines(vals.mean(), gi - 0.25, gi + 0.25, color=c, lw=2.5, zorder=4)
+        kx = 1 if tm.loc['South Korea', 'advanced'] else 0
+        ax.scatter([kx], [tm.loc['South Korea', col]], facecolors='none',
+                   edgecolors=KOR, s=160, lw=2, zorder=5)
+        ax.axhline(0.0, color='#3a3f46', lw=1, ls=':')
+        r = np.corrcoef(tm[col], tm['advanced'].astype(float))[0, 1]
+        ax.set_title(f"{title}\n16강 진출과 함께 움직이는 정도 {r:+.2f}",
+                     color=FG, fontsize=10.5, pad=8)
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels(['조별 탈락', '16강 진출'], color=FG, fontsize=9.5)
+        ax.set_xlim(-0.6, 1.6)
+        _style(ax)
+    axes[0].set_ylabel('32팀 평균과의 차이 (0 = 평균)', color=FG, fontsize=9.5)
+    fig.suptitle('16강에 오른 팀은 어디에 섰나 (가로 막대 = 그룹 평균, 빨간 원 = 한국)',
+                 color=FG, fontsize=12, fontweight='bold', y=0.99)
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.savefig(OUT / 'blog_advancement.png', dpi=140, facecolor=BG)
     plt.close(fig)
 
 

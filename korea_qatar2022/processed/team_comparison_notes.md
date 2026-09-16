@@ -58,3 +58,5 @@
 - `fig_team_comparison_5m.png` - 보정 전/후 팀 분포, 한국 강조
 - `fig_rank_slope_5m.png` - 보정 전후 순위 변화 범프 차트
 - `fig_advancement.png` - 16강 진출 여부별 분포 (채널 vs 중앙 x 원시/보정)
+- `blog_team_comparison.png` - 블로그용 팀 분포 (최종값만)
+- `blog_advancement.png` - 블로그용 16강 진출별 분포 (최종값만)

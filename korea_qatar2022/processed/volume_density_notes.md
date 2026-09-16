@@ -39,3 +39,4 @@
 
 - `volume_density.csv` - 팀별 양/밀도/중앙 밀도/라운드/잔차
 - `fig_volume_density.png` - 2패널 산점도 (원본 / 점유 볼륨 통제 후)
+- `blog_volume_density.png` - 블로그용 양 x 밀도 한 패널
