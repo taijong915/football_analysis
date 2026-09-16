@@ -28,7 +28,7 @@ StatsBomb 오픈 데이터(이벤트 데이터 + 일부 대회는 360 프리즈�
 
 각 단계의 세부 규칙(질문증강 화법, 조작적 정의 검토 절차와 위험 신호, 데이터 검토 방법, 폴더 명명, `PLAN.md` 구성, 산출물 경로, 샌드박스 사용법)은 착수 시점에 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md)를 읽고 따르세요.
 
-격리 가능한 일부 작업은 서브에이전트(`.claude/agents/`)에 위임합니다: `data-review-run`(2단계 데이터 검토의 전사·실행, Haiku), `analysis-verifier`(완료 전 검증 스윕), `blog-draft`(블로그 마크다운 원고 - **비전문 일반인이 쉽게 읽을 수 있는 수준**, 통계·데이터·축구 전문 용어를 풀어 씀), `blog-html`(원고 → 인라인 스타일 HTML 변환, Haiku). 서브에이전트 위임은 Claude Code 전용 기능이므로, Gemini / Antigravity CLI는 같은 작업을 세션에서 직접 수행하되 `.claude/agents/*.md`의 작업 범위·산출물 규격과 `analysis-workflow.md`의 "서브에이전트 분담"·"2-2. 데이터 검토 / 실행 분담" 절을 그대로 참고하세요. 완전 기계적인 검사(엠대시·이미지 링크·`CLAUDE.md` ↔ `GEMINI.md` diff)는 결정론적 스크립트 `scripts/check_docs.py`로 뺐습니다 - 이건 CLI와 무관하게 그대로 씁니다. 데이터 검토에서 확인 항목 정하기와 결과 해석, 1단계 아이디어 논의, 분석 실행·함수 이터레이션·문서 갱신은 메인 세션이 유지합니다. 블로그는 발행 전 메인 세션에서 사실 대조 → 제목·프레이밍 확정 → `humanize-korean` 스킬(또는 동급 윤문 도구)로 AI 티 윤문 → HTML 변환 → 태그 선정(질문증강 방식) → 발행 순서를 거칩니다. 자세한 기준은 `analysis-workflow.md`의 "서브에이전트 분담"·"블로그 발행 전 검토" 절을 참고하세요.
+격리 가능한 일부 작업은 서브에이전트(`.claude/agents/`)에 위임합니다: `data-review-run`(2단계 데이터 검토의 전사·실행, Haiku), `analysis-verifier`(완료 전 검증 스윕), `blog-draft`(블로그 마크다운 원고 - **비전문 일반인이 쉽게 읽을 수 있는 수준**, 통계·데이터 전문 용어는 풀어 쓰고 축구 팬이 흔히 아는 용어는 그대로 씀, 글 구성은 글쓰기 스킬 `.claude/skills/blog-essay-architect/SKILL.md`의 5단계 서사를 따르고 분석 과정의 시행착오·보정 전후 비교는 쓰지 않음), `blog-html`(원고 → 인라인 스타일 HTML 변환, Haiku). 서브에이전트 위임은 Claude Code 전용 기능이므로, Gemini / Antigravity CLI는 같은 작업을 세션에서 직접 수행하되 `.claude/agents/*.md`의 작업 범위·산출물 규격과 `analysis-workflow.md`의 "서브에이전트 분담"·"2-2. 데이터 검토 / 실행 분담" 절을 그대로 참고하세요. 완전 기계적인 검사(엠대시·이미지 링크·`CLAUDE.md` ↔ `GEMINI.md` diff)는 결정론적 스크립트 `scripts/check_docs.py`로 뺐습니다 - 이건 CLI와 무관하게 그대로 씁니다. 데이터 검토에서 확인 항목 정하기와 결과 해석, 1단계 아이디어 논의, 분석 실행·함수 이터레이션·문서 갱신은 메인 세션이 유지합니다. 블로그는 원고 작성 전 메인 세션이 스킬 적합성 검토(발견-단계 배치표 `ARC_MAP.md`)를 하고, 발행 전 사실 대조 → 제목·프레이밍 확정 → `humanize-korean` 스킬(또는 동급 윤문 도구)로 AI 티 윤문 → HTML 변환 → 태그 선정(질문증강 방식) → 발행 순서를 거칩니다. 자세한 기준은 `analysis-workflow.md`의 "서브에이전트 분담"·"블로그 발행 전 검토" 절을 참고하세요.
 
 ## 명령어
 
@@ -71,6 +71,7 @@ StatsBomb 오픈 데이터(이벤트 데이터 + 일부 대회는 360 프리즈�
 - `_workspace/` - `humanize-korean` 같은 스킬이 중간 산출물을 쌓는 스크래치 폴더. `.gitignore` 대상이며 커밋하지 않습니다.
 
 - `.claude/agents/` - 분석 워크플로우의 격리 가능한 단계를 위임하는 서브에이전트 정의(`data-review-run`, `analysis-verifier`, `blog-draft`, `blog-html`). 서브에이전트 위임은 Claude Code 전용 기능이고, Gemini / Antigravity CLI는 같은 작업을 세션에서 직접 수행하되 이 정의를 작업 범위·산출물 규격 참고용으로 씁니다. 위임 기준은 `.claude/rules/analysis-workflow.md`의 "서브에이전트 분담" 절에 있습니다. 문서 정합성 결정론적 검사는 `scripts/check_docs.py`(CLI 무관).
+- `.claude/skills/` - 프로젝트 전용 스킬. `blog-essay-architect/SKILL.md`는 블로그 원고를 스토리텔링형 데이터 칼럼으로 구성하는 글쓰기 프레임워크(5단계 서사, 문단·그림 배치, 지양 패턴)로, `blog-draft`가 초안 작성 시 따릅니다. Claude Code는 스킬로 자동 인식하고, Gemini / Antigravity CLI는 블로그 원고를 쓸 때 이 파일을 직접 읽어 같은 규칙을 적용합니다.
 
 `notebooks/`·`scripts/`의 샌드박스 사용법은 [`.claude/rules/analysis-workflow.md`](./.claude/rules/analysis-workflow.md), `data_loader`/`visualizer` 수정 시 필요한 StatsBomb 컬럼 규칙(좌표 언패킹, outcome 의미, 선수 이름/교체 처리)은 [`.claude/rules/statsbomb-data-notes.md`](./.claude/rules/statsbomb-data-notes.md)를 참고하세요.
 
