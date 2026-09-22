@@ -25,10 +25,18 @@
 레인 확장(2026-09-14 정의) 이후 그림은 `lane_split=True`로 그린다 - 레인 경계가
 깔리고 채널(실선 청록 링)과 중앙(점선 청록 링)이 나뉘어 표시된다.
 
+블로그용 스냅샷(2026-09-21 결정, `DECISIONS.md` 같은 날짜 항목)은 선정 기준이
+다르다. 블로그에서 스냅샷이 할 일은 팀 비교가 아니라 "세는 선수 / 비교용 선수 /
+세지 않는 선수"를 한 장에 보여 주는 것이므로, 전형이 아니라 **설명용 예시 장면**을
+고른다. 한국 조별리그 세 경기의 오픈플레이 전진 상황 중 채널 5m, 중앙 5m, 오프사이드
+위치가 각각 1명 이상이고 화면에 잡힌 상대가 9명 이상인 장면이 후보이며(`select_example`),
+그중 사용자가 가나전 75:22를 골랐다(`BLOG_PICK`). 그림 안 문구는 분석용 그대로 둔다.
+
 산출물(`korea_qatar2022/processed/`):
 - fig_snapshot_argentina.png      - 패널 1 왼쪽 (아르헨티나 조별리그 전형)
 - fig_snapshot_korea_group.png    - 패널 1 오른쪽 / 패널 2 왼쪽 (한국 조별리그 전형)
 - fig_snapshot_korea_brazil.png   - 패널 2 오른쪽 (한국 브라질전 전형)
+- blog_snapshot.png               - 블로그 Step 2 예시 장면 (한국 vs 가나 75:22)
 - snapshot_notes.md               - 선정 방식, 장면별 수치, 분포, 한계
 
 실행 (프로젝트 루트에서):
@@ -60,6 +68,11 @@ OPP_KR = {'Portugal': '포르투갈', 'Uruguay': '우루과이', 'Ghana': '가�
           'Poland': '폴란드', 'Saudi Arabia': '사우디아라비아', 'Mexico': '멕시코'}
 TEAM_KR = {'South Korea': '대한민국', 'Argentina': '아르헨티나'}
 
+# 블로그 예시 장면 - 후보 중 사용자가 고른 장면(2026-09-22). 가나전 75:22,
+# 황인범 -> 정우영 패스. 세 종류 선수가 서로 떨어져 있고 링 겹침이 적다.
+BLOG_PICK = ('Ghana', 75, 22)
+BLOG_MIN_OPP_VISIBLE = 9
+
 
 def select_typical(df: pd.DataFrame) -> tuple[pd.Series, float, dict]:
     """표본에서 '전형' 상황 한 건을 고른다. 반환: (행, 평균 n_channel5, 분포dict).
@@ -70,8 +83,7 @@ def select_typical(df: pd.DataFrame) -> tuple[pd.Series, float, dict]:
     어긋나므로 후보에서만 제외한다.
     """
     target = float(df['n_channel5'].mean())
-    kickoff = (df['minute'] < 3) | ((df['minute'] >= 45) & (df['minute'] < 48))
-    cand = df[~kickoff]
+    cand = df[~_is_kickoff(df)]
     if cand.empty:
         cand = df
     med_opp = df['n_opp_visible'].median()
@@ -87,6 +99,31 @@ def select_typical(df: pd.DataFrame) -> tuple[pd.Series, float, dict]:
     ).sort_values(['_a', '_o', '_b', '_c', '_d', 'minute', 'second'])
     dist = df['n_channel5'].value_counts(normalize=True).sort_index().round(3).to_dict()
     return ranked.iloc[0], target, dist
+
+
+def _is_kickoff(df: pd.DataFrame) -> pd.Series:
+    """전·후반 시작 3분. 킥오프 대형은 그 팀이 경기를 어떻게 풀었는지를 대표하지 않는다."""
+    return (df['minute'] < 3) | ((df['minute'] >= 45) & (df['minute'] < 48))
+
+
+def select_example(s: pd.DataFrame) -> tuple[pd.DataFrame, list[tuple[str, int]]]:
+    """블로그 예시 장면 후보. 반환: (후보 표, 조건을 하나씩 더할 때 남는 건수).
+
+    한국 오픈플레이 전진 상황에서 채널·중앙·오프사이드 위치가 한 장면에 모두 있고
+    화면에 잡힌 상대가 충분한(9명 이상) 조별리그 장면을 찾는다. 상대가 적게 잡힌
+    장면은 오프사이드 라인 추정이 얕아져 "무엇을 세는지" 설명에 쓰기 어렵다.
+    """
+    kor = s[(s['team'] == 'South Korea') & (~s['setpiece']) & (~_is_kickoff(s))]
+    funnel = [('한국 4경기 오픈플레이 전진 상황', len(kor))]
+    kor = kor[kor['n_channel5'] >= 1]
+    funnel.append(('+ 채널 5m >= 1', len(kor)))
+    kor = kor[kor['n_center5'] >= 1]
+    funnel.append(('+ 중앙 5m >= 1', len(kor)))
+    kor = kor[kor['n_beyond'] >= 1]
+    funnel.append(('+ 오프사이드 위치 >= 1', len(kor)))
+    kor = kor[(kor['stage'] == 'Group Stage') & (kor['n_opp_visible'] >= BLOG_MIN_OPP_VISIBLE)]
+    funnel.append((f'+ 조별리그 · 보이는 상대 >= {BLOG_MIN_OPP_VISIBLE}', len(kor)))
+    return kor.sort_values(['opponent', 'minute', 'second']), funnel
 
 
 def link_event(row: pd.Series) -> tuple[pd.Series, pd.DataFrame]:
@@ -110,7 +147,8 @@ def link_event(row: pd.Series) -> tuple[pd.Series, pd.DataFrame]:
     return event, frame
 
 
-def render(row: pd.Series, target: float, dist: dict, name: str) -> dict:
+def render(row: pd.Series, target: float, dist: dict, name: str,
+           filename: str | None = None) -> dict:
     event, frame = link_event(row)
     team_kr = TEAM_KR.get(row['team'], row['team'])
     opp_kr = OPP_KR.get(row['opponent'], row['opponent'])
@@ -128,12 +166,13 @@ def render(row: pd.Series, target: float, dist: dict, name: str) -> dict:
     fig, _ = plot_freeze_frame(frame, ball_location=event['location'],
                                launch_depth=LAUNCH_DEPTH, lane_split=True, title=title,
                                team_name=team_kr, opponent_name=opp_kr)
-    path = OUT / f'fig_snapshot_{name}.png'
+    path = OUT / (filename or f'fig_snapshot_{name}.png')
     fig.savefig(path, dpi=140, facecolor=fig.get_facecolor(), bbox_inches='tight')
     matplotlib.pyplot.close(fig)
 
     dist_str = ', '.join(f'{k}명 {v:.0%}' for k, v in dist.items() if round(v, 2) > 0)
     return {
+        'passer': event.get('player'), 'recipient': event.get('pass_recipient'),
         'name': name, 'file': path.name, 'team': row['team'], 'opponent': opp_kr,
         'minute': f"{int(row['minute'])}'{int(row['second']):02d}",
         'n_channel5': int(row['n_channel5']), 'n_center5': int(row['n_center5']),
@@ -177,11 +216,30 @@ def main() -> None:
               f"공 x={info['ball_x']}, 사이드 가시율 {info['vis_wide']}")
         print(f"  -> {info['file']}")
 
-    _write_notes(results, len(arg), len(kor_g), len(kor_b))
+    print("\n" + "-" * 78)
+    print("블로그 예시 장면")
+    print("-" * 78)
+    cands, funnel = select_example(s)
+    for label, n in funnel:
+        print(f"  {label}: {n}건")
+    for _, c in cands.iterrows():
+        print(f"    {c['opponent']:<9} {int(c['minute']):>2}:{int(c['second']):02d}  채널 {int(c['n_channel5'])} / "
+              f"중앙 {int(c['n_center5'])} / 오프사이드 {int(c['n_beyond'])} / 보이는 상대 {int(c['n_opp_visible'])}")
+    pick = cands[(cands['opponent'] == BLOG_PICK[0]) & (cands['minute'] == BLOG_PICK[1]) &
+                 (cands['second'] == BLOG_PICK[2])]
+    if len(pick) != 1:
+        raise RuntimeError(f"선택 장면 {BLOG_PICK}이 후보에 {len(pick)}건 - 조건이나 데이터가 바뀌었다")
+    blog = render(pick.iloc[0], np.nan, {}, 'blog', filename='blog_snapshot.png')
+    print(f"  선택: {blog['opponent']} {blog['minute']} {blog['passer']} -> {blog['recipient']}"
+          f" (채널 {blog['n_channel5']} / 중앙 {blog['n_center5']} / 오프사이드 {blog['n_beyond']})")
+    print(f"  -> {blog['file']}")
+
+    _write_notes(results, len(arg), len(kor_g), len(kor_b), blog, cands, funnel)
     print(f"\n저장: {OUT / 'snapshot_notes.md'}")
 
 
-def _write_notes(results: list[dict], n_arg: int, n_kor_g: int, n_kor_b: int) -> None:
+def _write_notes(results: list[dict], n_arg: int, n_kor_g: int, n_kor_b: int,
+                 blog: dict, cands: pd.DataFrame, funnel: list[tuple[str, int]]) -> None:
     r = {x['name']: x for x in results}
     lines = [
         "# 프리즈프레임 대비 스냅샷 - 선정 방식과 장면별 수치",
@@ -256,6 +314,35 @@ def _write_notes(results: list[dict], n_arg: int, n_kor_g: int, n_kor_b: int) ->
         "> 전형 장면은 늦은 시각(90분+)에 걸릴 수 있다. 킥오프 직후만 후보에서 빼고 그 밖의",
         "> 시각은 따지지 않기 때문이며, 점유 기반 지표라 경기 후반이 특별히 비대표적이지는",
         "> 않다. 각 그림 제목에 정확한 시각을 표기했다.",
+        "",
+        "## 블로그 예시 장면 (`blog_snapshot.png`)",
+        "",
+        "위 세 장은 팀별 평균에 가까운 **전형** 장면이라 블로그 Step 2(\"무엇을 셌는지\")에는",
+        "맞지 않는다 - 링이 채널 1개뿐이라 비교용 선수와 세지 않는 선수가 안 보인다. 블로그용은",
+        "세 종류 선수가 한 장면에 모두 있는 **설명용 예시**로 따로 골랐다(캡션에 \"전형\"이라 쓰지",
+        "않는다). 그림 안 문구는 분석용 그대로다.",
+        "",
+        "선정 조건 (한국, 오픈플레이 전진 상황 x 30-110, 세트피스·킥오프 직후 3분 제외):",
+        "",
+        *[f"- {label}: {n}건" for label, n in funnel],
+        "",
+        "후보:",
+        "",
+        "| 상대 | 시각 | 채널 5m | 중앙 5m | 오프사이드 위치 | 보이는 상대 |",
+        "| :--- | :--- | ---: | ---: | ---: | ---: |",
+        *[f"| {OPP_KR.get(c['opponent'], c['opponent'])} | {int(c['minute'])}:{int(c['second']):02d} | "
+          f"{int(c['n_channel5'])} | {int(c['n_center5'])} | {int(c['n_beyond'])} | {int(c['n_opp_visible'])} |"
+          for _, c in cands.iterrows()],
+        "",
+        f"**선택 (2026-09-22 사용자)**: {blog['opponent']}전 {blog['minute']}, "
+        f"{blog['passer']} -> {blog['recipient']}. 채널 {blog['n_channel5']}명 / 중앙 "
+        f"{blog['n_center5']}명 / 오프사이드 위치 {blog['n_beyond']}명, 화면에 잡힌 상대 "
+        f"{blog['n_opp_visible']}명, 추정 라인 x={blog['def_line']}.",
+        "세 종류 선수가 서로 떨어져 있고 링 겹침이 적어서 골랐다. 우루과이전 41:49는 채널",
+        "3명이 몰려 있고, 가나전 06:30은 중앙 링이 겹쳐 읽기 어렵다.",
+        "",
+        "보로노이 오버레이는 넣지 않는다. 레인 경계가 이미 깔려 있어 그림이 복잡해지고,",
+        "360은 화면에 잡힌 선수만 기록하므로 안 보이는 선수 자리가 가짜 빈 공간으로 그려진다.",
     ]
     (OUT / 'snapshot_notes.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 

@@ -880,7 +880,8 @@ def plot_freeze_frame(frame_df: pd.DataFrame,
                        zorder=5, label='중앙 (대조군)')
         if offside_sel.any():
             ax.scatter(xy[offside_sel, 0], xy[offside_sel, 1], s=520, facecolors='none',
-                       edgecolors='#ff9f1c', linewidths=2.6, zorder=5)
+                       edgecolors='#ff9f1c', linewidths=2.6, zorder=5,
+                       label='오프사이드 위치')
 
     def _draw(selection, **kwargs):
         if selection.any():
@@ -900,8 +901,11 @@ def plot_freeze_frame(frame_df: pd.DataFrame,
         ax.scatter(xy[actor_sel, 0], xy[actor_sel, 1], s=520, facecolors='none',
                    edgecolors='#b967ff', linewidths=2.6, zorder=6, label='공 소유자')
 
+    # 항목이 7개를 넘으면(레인 구분 + 오프사이드 위치 + 양 팀 GK) 한 줄에 다 들어가지
+    # 않아 두 줄로 나눈다.
+    n_items = len(ax.get_legend_handles_labels()[1])
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.02),
-              ncol=7 if lane_split else 5, frameon=False,
+              ncol=n_items if n_items <= 7 else -(-n_items // 2), frameon=False,
               labelcolor=line_color, fontsize=9.5)
 
     head = title or '360 프리즈프레임'
