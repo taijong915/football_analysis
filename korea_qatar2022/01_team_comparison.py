@@ -230,6 +230,10 @@ def _write_notes(g: pd.DataFrame, tm: pd.DataFrame, d: dict) -> None:
     kor = tm.loc['South Korea']
     top5 = tm.sort_values('adj5', ascending=False).head(5)['team_kr'].tolist()
     bot5 = tm.sort_values('adj5').head(5)['team_kr'].tolist()
+    # 진출/탈락 그룹 평균과 진출 팀 안에서의 한국 위치 (보정 채널 5m)
+    grp = tm.groupby('advanced')['adj5'].mean()
+    adv = tm[tm['advanced']]
+    kor_rank_adv = int((adv['adj5'] < kor['adj5']).sum()) + 1
 
     lines = [
         "# 팀 비교 관찰 메모 (질문 1~2)",
@@ -291,6 +295,9 @@ def _write_notes(g: pd.DataFrame, tm: pd.DataFrame, d: dict) -> None:
         f"- 사이드 레인 가시율도 {kor['vis_wide']:.3f}로 32팀 중 최저다"
         f"(32팀 평균 {g['vis_launch_wide'].mean():.3f}). 채널 지표가 세는 구역이라 "
         "보정 폭이 큰 팀에 속한다.",
+        f"- 보정 채널 5m에서 한국({kor['adj5']:+.3f})은 16강 진출 {len(adv)}팀 평균"
+        f"({grp[True]:+.3f})보다 낮고 탈락 {len(tm) - len(adv)}팀 평균({grp[False]:+.3f})보다 "
+        f"높다. 진출 팀 안에서는 아래에서 {kor_rank_adv}번째다.",
         "",
         "## 해석 시 유의 (PLAN \"한계\" 재확인)",
         "",
